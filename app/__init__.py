@@ -11,7 +11,7 @@ from flask_wtf.csrf import CSRFError
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from .cli import register_cli
-from .config import BASE_DIR, CONFIG_MAP, ProductionConfig
+from .config import BASE_DIR, CONFIG_MAP
 from .constants import (
     NETWORK_CHOICES,
     NETWORKS,
@@ -39,8 +39,8 @@ def create_app(config_name: str | None = None) -> Flask:
     config_class = CONFIG_MAP.get(selected)
     if config_class is None:
         raise RuntimeError(f"Unknown APP_ENV: {selected}")
-    if selected == "production":
-        ProductionConfig.validate()
+    if selected in {"production", "demo"}:
+        config_class.validate()
     app.config.from_object(config_class)
     app.config["ENV_NAME"] = selected
 

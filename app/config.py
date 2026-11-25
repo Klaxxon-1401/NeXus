@@ -23,12 +23,15 @@ def _env_bool(name: str, default: bool = False) -> bool:
 
 
 def _database_uri() -> str:
-    """Return a SQLAlchemy URI, normalising Heroku-style Postgres URLs."""
+    """Return a SQLAlchemy URI, normalising hosted PostgreSQL URLs."""
     uri = os.getenv("DATABASE_URL", "").strip()
     if not uri:
         return f"sqlite:///{BASE_DIR / 'instance' / 'sigma.db'}"
     if uri.startswith("postgres://"):
         uri = uri.replace("postgres://", "postgresql://", 1)
+    if uri.startswith("postgresql://"):
+        # requirements-postgres.txt installs psycopg v3, not psycopg2.
+        uri = uri.replace("postgresql://", "postgresql+psycopg://", 1)
     return uri
 
 
@@ -150,8 +153,41 @@ class ProductionConfig(Config):
             raise RuntimeError("Unsafe production configuration: " + "; ".join(problems))
 
 
+class DemoConfig(Config):
+    """Hardened hosted configuration that keeps fictional demo workflows on."""
+
+    ENV_NAME = "demo"
+    DEBUG = False
+    DEMO_MODE = _env_bool("DEMO_MODE", True)
+    SESSION_COOKIE_SECURE = True
+    TRUST_PROXY_HEADERS = _env_bool("TRUST_PROXY_HEADERS", True)
+    FORCE_HTTPS = _env_bool("FORCE_HTTPS", True)
+
+    @classmethod
+    def validate(cls) -> None:
+        """Require deployment-grade transport, signing, and database settings."""
+        problems: list[str] = []
+        secret = os.getenv("SECRET_KEY", "")
+        database_url = os.getenv("DATABASE_URL", "").strip()
+        if len(secret) < 32:
+            problems.append("SECRET_KEY must be set to at least 32 characters")
+        if not database_url.startswith(
+            ("postgres://", "postgresql://", "postgresql+psycopg://")
+        ):
+            problems.append("DATABASE_URL must point at PostgreSQL")
+        if not _env_bool("TRUST_PROXY_HEADERS", True):
+            problems.append("TRUST_PROXY_HEADERS must be enabled behind Render's proxy")
+        if not _env_bool("FORCE_HTTPS", True):
+            problems.append("FORCE_HTTPS must be enabled for a hosted demo")
+        if not _env_bool("SESSION_COOKIE_SECURE", True):
+            problems.append("SESSION_COOKIE_SECURE must be enabled for a hosted demo")
+        if problems:
+            raise RuntimeError("Unsafe demo deployment configuration: " + "; ".join(problems))
+
+
 CONFIG_MAP = {
     "development": DevelopmentConfig,
     "testing": TestingConfig,
     "production": ProductionConfig,
+    "demo": DemoConfig,
 }

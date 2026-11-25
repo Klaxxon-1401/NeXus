@@ -80,6 +80,22 @@ flask --app run.py run --debug
 
 Open <http://127.0.0.1:5000>.
 
+## Deploy a temporary demo on Render
+
+The repository includes a `render.yaml` Blueprint for the full Flask site and
+PostgreSQL database. Push this repository to GitHub, then in Render choose
+**New → Blueprint** and connect the repository. Render will create the web
+service and database, generate a secret key, and seed the fictional demo
+workspace on the first deploy. Open the service URL and sign in with
+`alex@sigma.demo` / `SigmaDemo!2026`.
+
+This hosted configuration keeps the simulated wallet and return workflows
+enabled for testing. It is a public educational prototype, not a financial
+service. Render's free web service sleeps after 15 minutes without traffic, so
+the next visit may take about a minute to wake. Its free PostgreSQL database is
+temporary and expires after 30 days; export anything you want to keep before
+then. See [Render's free instance limits](https://render.com/docs/free).
+
 The local database is `instance/sigma.db`. To rebuild the demo from scratch:
 
 ```bash
@@ -116,7 +132,7 @@ See `.env.example` for the full list.
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
-| `APP_ENV` | `development` | Selects `development`, `testing`, or `production` |
+| `APP_ENV` | `development` | Selects `development`, `testing`, `demo`, or `production` |
 | `SECRET_KEY` | dev placeholder | Session signing key; production requires 32+ characters |
 | `DATABASE_URL` | SQLite | SQLAlchemy URI; PostgreSQL in production |
 | `DEMO_MODE` | `true` | Enables destructive simulation endpoints |
@@ -130,7 +146,9 @@ See `.env.example` for the full list.
 
 Development and testing defaults are intentionally convenient. The production
 config **fails closed** at startup unless it has a strong `SECRET_KEY`, a
-`DATABASE_URL`, `DEMO_MODE` disabled, and proxy trust enabled.
+PostgreSQL `DATABASE_URL`, `DEMO_MODE` disabled, and proxy trust enabled. The
+hosted `demo` config also requires a strong key, PostgreSQL, trusted proxy
+headers, secure cookies, and HTTPS, while leaving fictional demo workflows on.
 
 ## Architecture
 
