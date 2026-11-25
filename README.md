@@ -86,7 +86,8 @@ The repository includes a `render.yaml` Blueprint for the full Flask site and
 PostgreSQL database. Push this repository to GitHub, then in Render choose
 **New → Blueprint** and connect the repository. Render will create the web
 service and database, generate a secret key, and seed the fictional demo
-workspace on the first deploy. Open the service URL and sign in with
+workspace before each server start (the seed command only creates demo data
+once). Open the service URL and sign in with
 `alex@sigma.demo` / `SigmaDemo!2026`.
 
 This hosted configuration keeps the simulated wallet and return workflows
