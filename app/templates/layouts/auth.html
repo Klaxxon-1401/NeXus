@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% from "components/ui.html" import icon, logo %}
+
+{% block body_class %}auth-page{% endblock %}
+
+{% block body %}
+<div class="auth-shell">
+  <main class="auth-primary" id="main-content">
+    <header class="auth-header">
+      {{ logo() }}
+      <a class="auth-back" href="{{ url_for('public.landing') }}">{{ icon("arrow-left", 15) }} Back to site</a>
+    </header>
+    <div class="auth-form-wrap">
+      {% block auth_content %}{% endblock %}
+      <p class="auth-legal">Protected by encrypted transport, CSRF checks and rate limiting in production. This prototype does not handle real funds.</p>
+    </div>
+  </main>
+
+  <aside class="auth-aside" aria-label="About Sigma">
+    <div class="auth-aside-grid" aria-hidden="true"></div>
+    <div class="auth-aside-top">
+      <span class="eyebrow eyebrow-light"><span></span> Private beta · 2026</span>
+      <img src="{{ url_for('static', filename='img/mark.svg') }}" width="52" height="52" alt="" class="auth-aside-mark">
+    </div>
+
+    <div class="auth-aside-body">
+      <p class="display-quote">“A calmer way to<br>see your <em>capital.</em>”</p>
+      <p class="auth-aside-copy">Structured positions, transparent monthly cycles and a referral network mapped to five levels — all inside an isolated workspace.</p>
+
+      <div class="auth-terminal">
+        <div class="auth-terminal-head">
+          <span class="window-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+          <span>Network distribution</span>
+          <span class="terminal-status"><span></span> Live demo</span>
+        </div>
+        <div class="referral-ladder referral-ladder-compact">
+          {% for level in referral_levels %}
+          <div class="referral-step">
+            <span class="level-tag">L{{ level.level }}</span>
+            <progress class="level-progress" max="100" value="{{ 100 - loop.index0 * 15 }}" aria-label="Level {{ level.level }} emphasis">{{ level.rate_percent }}</progress>
+            <strong>{{ level.rate_percent }}</strong>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    <div class="auth-aside-foot">
+      <div><span class="aside-stat">01</span><p>Isolated workspaces</p></div>
+      <div><span class="aside-stat">05</span><p>Referral levels</p></div>
+      <div><span class="aside-stat">∞</span><p>Audit trail</p></div>
+    </div>
+  </aside>
+</div>
+{% endblock %}

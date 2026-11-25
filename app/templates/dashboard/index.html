@@ -1,0 +1,256 @@
+{% extends "layouts/app.html" %}
+{% from "components/ui.html" import icon, empty_state %}
+{% from "components/ledger.html" import transaction_row with context %}
+
+{% block title %}Dashboard · Sigma Investments{% endblock %}
+
+{% block app_content %}
+<div class="page-head">
+  <div class="page-head-copy">
+    <span class="eyebrow"><span class="eyebrow-line"></span> {{ current_tenant.name }} / overview</span>
+    <h1>Welcome back,<br><em>{{ current_user.first_name }}.</em></h1>
+    <p>Here is how your positions, payouts and network are moving this cycle.</p>
+  </div>
+  <div class="page-actions">
+    <a class="button button-secondary" href="{{ url_for('wallet.index') }}">{{ icon("wallet", 16) }} Manage wallet</a>
+    <a class="button button-primary" href="{{ url_for('portfolio.index') }}">{{ icon("plus", 16) }} New position</a>
+  </div>
+</div>
+
+{% if totals.pending_cents or pending_requests %}
+<div class="inline-notice">
+  <span class="inline-notice-icon">{{ icon("clock", 17) }}</span>
+  <p><strong>{{ pending_requests }} request{{ "s" if pending_requests != 1 }} awaiting action.</strong> Deposits stay pending until confirmed; withdrawals hold funds until reviewed.</p>
+  <a href="{{ url_for('wallet.index') }}#pending">Review requests {{ icon("arrow-right", 14) }}</a>
+</div>
+{% endif %}
+
+<div class="kpi-grid">
+  <article class="kpi-card kpi-card-lead">
+    <div class="kpi-head"><span>Total book value</span><span class="kpi-icon">{{ icon("chart", 18) }}</span></div>
+    <strong class="kpi-value">{{ total_portfolio_value|money }}</strong>
+    <div class="kpi-foot">
+      <span><i class="status-dot"></i> Available + active principal</span>
+      <span class="kpi-caption">{{ summary.active_count }} active</span>
+    </div>
+    <div class="kpi-signal" aria-hidden="true">
+      <span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+    </div>
+  </article>
+
+  <article class="kpi-card">
+    <div class="kpi-head"><span>Active principal</span><span class="kpi-icon">{{ icon("layers", 18) }}</span></div>
+    <strong class="kpi-value">{{ summary.active_principal_cents|money }}</strong>
+    <div class="kpi-foot">
+      <span>{{ "%.1f"|format((summary.active_principal_cents / total_portfolio_value * 100) if total_portfolio_value else 0) }}% deployed</span>
+      <span class="kpi-caption">{{ summary.active_count }} positions</span>
+    </div>
+    <progress class="kpi-progress" max="100" value="{{ (summary.active_principal_cents / total_portfolio_value * 100) if total_portfolio_value else 0 }}">Deployed capital</progress>
+  </article>
+
+  <article class="kpi-card">
+    <div class="kpi-head"><span>Monthly distribution</span><span class="kpi-icon">{{ icon("trend", 18) }}</span></div>
+    <strong class="kpi-value">{{ summary.monthly_income_cents|money }}</strong>
+    <div class="kpi-foot">
+      <span>Latest cycle {{ next_month_income|money }}</span>
+      <span class="kpi-caption">Illustrative</span>
+    </div>
+    <div class="kpi-mini-rows">
+      <span>Next cycle</span><b>{{ summary.next_installments[0].due_on|date("%b %d") if summary.next_installments else "—" }}</b>
+    </div>
+  </article>
+
+  <article class="kpi-card kpi-card-accent">
+    <div class="kpi-head"><span>Referral earnings</span><span class="kpi-icon">{{ icon("users", 18) }}</span></div>
+    <strong class="kpi-value">{{ referral.total_earned_cents|money }}</strong>
+    <div class="kpi-foot">
+      <span>{{ referral.downline_count }} partner{{ "s" if referral.downline_count != 1 }} tracked</span>
+      <a class="kpi-link" href="{{ url_for('referrals.index') }}">View tree {{ icon("arrow-up-right", 13) }}</a>
+    </div>
+    <div class="kpi-levels" aria-hidden="true">
+      {% for level in referral.by_level %}
+        <span title="Level {{ level.level }}: {{ level.members }} members"></span>
+      {% endfor %}
+    </div>
+  </article>
+</div>
+
+<div class="dashboard-grid">
+  <div class="dashboard-main">
+    <section class="panel chart-panel">
+      <div class="panel-head">
+        <div>
+          <span class="panel-eyebrow">Distribution outlook</span>
+          <h2>Next 12 monthly cycles</h2>
+        </div>
+        <div class="chart-head-right">
+          <span class="chart-total">{{ summary.monthly_income_cents|money }}<small>/ month</small></span>
+          <span class="chip">{{ icon("clock", 13) }} Scheduled</span>
+        </div>
+      </div>
+
+      <div class="chart-body">
+        <div class="chart-scale" aria-hidden="true">
+          <span>{{ chart.max|money }}</span>
+          <span>{{ (chart.max // 2)|money }}</span>
+          <span>$0</span>
+        </div>
+        <div class="chart-canvas">
+          <svg viewBox="0 0 {{ chart.width }} {{ chart.height }}" role="img" aria-labelledby="chartTitle chartDesc">
+            <title id="chartTitle">Projected monthly returns across the next twelve months</title>
+            <desc id="chartDesc">A projection based on currently active positions. Total projected monthly income is {{ summary.monthly_income_cents|money }}.</desc>
+            <defs>
+              <linearGradient id="dashboardFill" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#FFD600" stop-opacity=".2"/>
+                <stop offset="100%" stop-color="#FFD600" stop-opacity="0"/>
+              </linearGradient>
+            </defs>
+            <g class="chart-gridlines">
+              <line x1="16" y1="16" x2="{{ chart.width - 16 }}" y2="16"/>
+              <line x1="16" y1="{{ (chart.height / 2)|round(0, 'floor')|int }}" x2="{{ chart.width - 16 }}" y2="{{ (chart.height / 2)|round(0, 'floor')|int }}"/>
+              <line x1="16" y1="{{ chart.baseline }}" x2="{{ chart.width - 16 }}" y2="{{ chart.baseline }}"/>
+            </g>
+            <polygon points="{{ chart.area }}" fill="url(#dashboardFill)"/>
+            <polyline points="{{ chart.line }}" fill="none" stroke="#FFD600" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <div class="chart-month-row" aria-hidden="true">
+            {% for label in chart_labels %}<span>{{ label }}</span>{% endfor %}
+          </div>
+          {% if summary.monthly_income_cents == 0 %}
+          <div class="chart-empty">
+            <p>No active positions yet. Your projection will appear here once you invest.</p>
+            <a class="text-link" href="{{ url_for('portfolio.index') }}">Open a position {{ icon("arrow-right", 14) }}</a>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+      <div class="chart-footer">
+        <span>{{ icon("info", 14) }} Based on scheduled returns for active positions; not guaranteed.</span>
+        <span>{{ summary.active_count }} active plan{{ "s" if summary.active_count != 1 }}</span>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <div>
+          <span class="panel-eyebrow">Calendar</span>
+          <h2>Upcoming distributions</h2>
+        </div>
+        <a class="text-link" href="{{ url_for('portfolio.index') }}">All positions {{ icon("arrow-right", 14) }}</a>
+      </div>
+      {% if summary.next_installments %}
+      <div class="schedule-list">
+        {% for item in summary.next_installments %}
+        <div class="schedule-row">
+          <div class="schedule-date"><span>{{ item.due_on|date("%b") }}</span><strong>{{ item.due_on|date("%d") }}</strong></div>
+          <div class="schedule-main">
+            <strong>{{ item.investment.plan_name }} distribution</strong>
+            <span>Month {{ item.month_number }} of {{ item.investment.term_months }} · {{ item.investment.monthly_rate_percent }} monthly</span>
+          </div>
+          <span class="schedule-amount">+{{ item.amount_cents|money }}</span>
+          <span class="status-badge status-scheduled"><span></span>{{ "Due" if item.due_on <= today else "Scheduled" }}</span>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+        {{ empty_state("No distributions scheduled", "Open a position to build your monthly distribution calendar.", "Explore plans", url_for('portfolio.index'), "clock") }}
+      {% endif %}
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <div>
+          <span class="panel-eyebrow">Ledger</span>
+          <h2>Recent activity</h2>
+        </div>
+        <a class="text-link" href="{{ url_for('activity.index') }}">Full activity {{ icon("arrow-right", 14) }}</a>
+      </div>
+      {% if recent_transactions %}
+      <div class="ledger-list">
+        {% for transaction in recent_transactions %}
+          {{ transaction_row(transaction) }}
+        {% endfor %}
+      </div>
+      {% else %}
+        {{ empty_state("Your ledger is quiet", "Deposits, investments, returns and referral payouts will appear here.", "Fund wallet", url_for('wallet.index'), "activity") }}
+      {% endif %}
+    </section>
+  </div>
+
+  <aside class="dashboard-rail">
+    <section class="panel capital-panel">
+      <div class="panel-head">
+        <div>
+          <span class="panel-eyebrow">Wallet</span>
+          <h2>Available capital</h2>
+        </div>
+        <span class="kpi-icon">{{ icon("wallet", 17) }}</span>
+      </div>
+      <strong class="capital-value">{{ totals.available_cents|money }}</strong>
+      <div class="capital-meta">
+        <span>Reserved</span><b>{{ totals.pending_cents|money }}</b>
+      </div>
+      <div class="capital-actions">
+        <a class="button button-primary button-small" href="{{ url_for('wallet.index') }}">Add funds</a>
+        <a class="button button-secondary button-small" href="{{ url_for('wallet.index') }}#withdraw">Withdraw</a>
+      </div>
+      <p class="capital-note">{{ icon("shield", 13) }} Simulated USD · tenant-scoped</p>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head panel-head-tight">
+        <div>
+          <span class="panel-eyebrow">Allocation</span>
+          <h2>By plan</h2>
+        </div>
+        <span class="panel-count">{{ summary.active_count }}</span>
+      </div>
+      {% if summary.allocations %}
+      <div class="allocation-list">
+        {% for allocation in summary.allocations %}
+        <div class="allocation-item">
+          <div class="allocation-top">
+            <span><i class="allocation-dot allocation-{{ allocation.code }}"></i>{{ allocation.name }}</span>
+            <strong>{{ allocation.percent }}%</strong>
+          </div>
+          <progress class="allocation-progress allocation-{{ allocation.code }}" max="100" value="{{ allocation.percent }}">{{ allocation.name }}</progress>
+          <div class="allocation-meta"><span>{{ allocation.amount_cents|money }}</span><span>principal</span></div>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+        <div class="rail-empty"><p>No allocations yet.</p><a class="text-link" href="{{ url_for('portfolio.index') }}">Choose a plan {{ icon("arrow-right", 13) }}</a></div>
+      {% endif %}
+    </section>
+
+    <section class="panel referral-rail">
+      <div class="panel-head panel-head-tight">
+        <div>
+          <span class="panel-eyebrow">Network</span>
+          <h2>Your referral tree</h2>
+        </div>
+        <span class="panel-count">{{ referral.downline_count }}</span>
+      </div>
+      <div class="referral-tree-mini" aria-hidden="true">
+        <span class="tree-root">{{ current_user.initials }}</span>
+        <span class="tree-trunk"></span>
+        <div class="tree-levels">
+          {% for level in referral.by_level %}
+          <span class="tree-node{% if level.members == 0 %} is-empty{% endif %}">{{ level.members }}</span>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="referral-rail-stats">
+        <div><span>Total earned</span><strong>{{ referral.total_earned_cents|money }}</strong></div>
+        <div><span>Direct partners</span><strong>{{ referral.direct_count }}</strong></div>
+      </div>
+      <a class="rail-link" href="{{ url_for('referrals.index') }}">Open referral network <span>{{ icon("arrow-up-right", 14) }}</span></a>
+    </section>
+
+    <section class="rail-note">
+      <span>{{ icon("info", 16) }}</span>
+      <p>All returns and commissions are simulated. This environment does not connect to a payment network or custody provider.</p>
+    </section>
+  </aside>
+</div>
+{% endblock %}

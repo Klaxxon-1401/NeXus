@@ -1,0 +1,71 @@
+{% extends "layouts/auth.html" %}
+{% from "components/ui.html" import icon, field %}
+
+{% block title %}Create your workspace · Sigma Investments{% endblock %}
+
+{% block auth_content %}
+<div class="auth-heading auth-heading-compact">
+  <span class="eyebrow"><span class="eyebrow-line"></span> Open an account</span>
+  <h1>Make your<br><em>own signal.</em></h1>
+  <p>Your first account creates an isolated workspace. Invitees join the inviter's workspace so referral relationships stay within one clean book.</p>
+</div>
+
+{% if invite_code %}
+  {% if referrer_preview %}
+  <div class="invite-banner">
+    <span class="invite-icon">{{ icon("users", 18) }}</span>
+    <div>
+      <strong>You were invited by {{ referrer_preview.private_name }}</strong>
+      <p>You'll join <b>{{ referrer_preview.tenant.name }}</b> as an investor.</p>
+    </div>
+    <span class="invite-code">{{ invite_code }}</span>
+  </div>
+  {% else %}
+  <div class="notice notice-warning">
+    <span>{{ icon("info", 17) }}</span>
+    <p>Invite code <strong>{{ invite_code }}</strong> was not found. You can enter a valid code or create a new workspace instead.</p>
+  </div>
+  {% endif %}
+{% endif %}
+
+<form class="auth-form" method="post" action="{{ url_for('auth.signup') }}" novalidate data-signup-form>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+  <div class="form-split">
+    {{ field(form.full_name, label="Full name", placeholder="Jordan Lee", autocomplete="name") }}
+    {{ field(form.email, label="Email address", placeholder="you@example.com", autocomplete="email", inputmode="email") }}
+  </div>
+
+  <div class="field{% if form.password.errors %} has-error{% endif %}">
+    <div class="field-label-row">
+      <label class="field-label" for="{{ form.password.id }}">Password</label>
+      <span class="field-aux">12+ characters</span>
+    </div>
+    <div class="password-wrap">
+      {{ form.password(class="field-input", autocomplete="new-password", placeholder="Create a strong password", data_password_input="true") }}
+      <button type="button" class="password-toggle" data-password-toggle aria-label="Show password" aria-pressed="false">{{ icon("eye", 18) }}</button>
+    </div>
+    <div class="password-meter" data-password-meter aria-hidden="true"><span></span><span></span><span></span><span></span></div>
+    {% for error in form.password.errors %}<p class="field-error" role="alert">{{ error }}</p>{% endfor %}
+  </div>
+
+  {{ field(form.confirm_password, label="Confirm password", placeholder="Repeat your password", autocomplete="new-password") }}
+
+  <div class="auth-divider"><span>Workspace or invitation</span></div>
+
+  <div class="form-split">
+    {{ field(form.referral_code, label="Invite code (optional)", placeholder="e.g. K7M4PZQX", hint="Join an existing workspace and build the referral tree.", autocomplete="off") }}
+    <div data-workspace-field>
+      {{ field(form.workspace_name, label="Workspace name", placeholder="e.g. Meridian Circle", hint="Only used when you are not joining with a code.", autocomplete="organization") }}
+    </div>
+  </div>
+
+  {{ field(form.accept_terms, label="I understand this is an educational prototype, not a financial product") }}
+
+  <button class="button button-primary button-full button-large auth-submit" type="submit">
+    <span>Create workspace</span>{{ icon("arrow-up-right", 17) }}
+  </button>
+</form>
+
+<p class="auth-switch">Already have an account? <a href="{{ url_for('auth.login') }}">Sign in</a></p>
+{% endblock %}

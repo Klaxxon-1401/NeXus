@@ -1,0 +1,244 @@
+{% extends "layouts/app.html" %}
+{% from "components/ui.html" import icon, field, empty_state %}
+{% from "components/ledger.html" import transaction_row with context %}
+
+{% block title %}Wallet · Sigma Investments{% endblock %}
+
+{% block app_content %}
+<div class="page-head">
+  <div class="page-head-copy">
+    <span class="eyebrow"><span class="eyebrow-line"></span> Treasury / simulated USD</span>
+    <h1>Move funds,<br><em>without the fog.</em></h1>
+    <p>Requests are recorded the moment they are created. Deposits stay pending until verified; withdrawals reserve cash immediately.</p>
+  </div>
+  <div class="page-actions">
+    <a class="button button-secondary" href="#deposit">{{ icon("download", 16) }} Deposit</a>
+    <a class="button button-primary" href="#withdraw">{{ icon("send", 16) }} Withdraw</a>
+  </div>
+</div>
+
+<div class="mini-stat-grid wallet-stats">
+  <div class="mini-stat mini-stat-lead">
+    <span>Available balance</span>
+    <strong>{{ totals.available_cents|money }}</strong>
+    <small>Ready to invest or withdraw</small>
+  </div>
+  <div class="mini-stat">
+    <span>Reserved</span>
+    <strong>{{ totals.pending_cents|money }}</strong>
+    <small>Withdrawals under review</small>
+  </div>
+  <div class="mini-stat">
+    <span>Lifetime deposits</span>
+    <strong>{{ totals.lifetime_deposits_cents|money }}</strong>
+    <small>Confirmed credits only</small>
+  </div>
+  <div class="mini-stat">
+    <span>Lifetime withdrawals</span>
+    <strong>{{ totals.lifetime_withdrawals_cents|money }}</strong>
+    <small>Completed payouts</small>
+  </div>
+</div>
+
+<div class="wallet-layout">
+  <div class="wallet-main">
+    <section class="panel" id="deposit">
+      <div class="panel-head">
+        <div>
+          <span class="panel-eyebrow">Inbound</span>
+          <h2>Deposit funds</h2>
+        </div>
+        <span class="chip">{{ icon("download", 13) }} Pending verification</span>
+      </div>
+
+      <div class="flow-note">
+        <span class="flow-step"><i>01</i> Create a request</span>
+        <span class="flow-line" aria-hidden="true"></span>
+        <span class="flow-step"><i>02</i> Send to the platform address</span>
+        <span class="flow-line" aria-hidden="true"></span>
+        <span class="flow-step"><i>03</i> A provider confirms</span>
+      </div>
+
+      <form class="auth-form deposit-form" method="post" action="{{ url_for('wallet.deposit') }}" novalidate>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="form-split">
+          <div class="amount-field">
+            <label class="field-label" for="{{ deposit_form.amount.id }}">Amount (USD)</label>
+            <div class="amount-input-wrap">
+              <span>$</span>
+              {{ deposit_form.amount(class="field-input", placeholder="1,000.00", inputmode="decimal", data_amount_input="deposit") }}
+            </div>
+            {% for error in deposit_form.amount.errors %}<p class="field-error" role="alert">{{ error }}</p>{% endfor %}
+            <div class="quick-amounts" aria-label="Quick deposit amounts">
+              <button type="button" data-amount="250" data-amount-target="deposit">$250</button>
+              <button type="button" data-amount="1000" data-amount-target="deposit">$1k</button>
+              <button type="button" data-amount="5000" data-amount-target="deposit">$5k</button>
+            </div>
+          </div>
+          {{ field(deposit_form.network, label="Network") }}
+        </div>
+
+        {{ field(deposit_form.source_address, label="Sending wallet address", placeholder="0x…", autocomplete="off", hint="The address you will send from. Format-checked only in this prototype.") }}
+
+        <details class="address-disclosure">
+          <summary>{{ icon("info", 14) }} Platform addresses by network</summary>
+          <div class="address-list">
+            {% for network, address in deposit_addresses.items() %}
+            <div class="address-row">
+              <div><span>{{ networks.get(network, network) }}</span><code>{{ address }}</code></div>
+              <button type="button" class="copy-button" data-copy="{{ address }}" aria-label="Copy {{ network }} address">{{ icon("copy", 15) }}</button>
+            </div>
+            {% endfor %}
+          </div>
+        </details>
+
+        {{ field(deposit_form.tx_hash, label="Transaction hash (optional)", placeholder="0x…", autocomplete="off", hint="If supplied, the same hash cannot be submitted twice in this workspace.") }}
+
+        <button class="button button-primary button-full" type="submit">{{ icon("download", 15) }} Create deposit request</button>
+      </form>
+    </section>
+
+    <section class="panel" id="withdraw">
+      <div class="panel-head">
+        <div>
+          <span class="panel-eyebrow">Outbound</span>
+          <h2>Request a withdrawal</h2>
+        </div>
+        <span class="chip chip-muted">{{ icon("lock", 13) }} Funds reserved on submit</span>
+      </div>
+
+      <form class="auth-form withdrawal-form" method="post" action="{{ url_for('wallet.withdraw') }}" novalidate>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="form-split">
+          <div class="amount-field">
+            <label class="field-label" for="{{ withdrawal_form.amount.id }}">Amount (USD)</label>
+            <div class="amount-input-wrap">
+              <span>$</span>
+              {{ withdrawal_form.amount(class="field-input", placeholder="500.00", inputmode="decimal", data_amount_input="withdraw") }}
+              <button type="button" class="amount-max" data-fill-max="{{ totals.available_cents }}" data-amount-target="withdraw">Max</button>
+            </div>
+            {% for error in withdrawal_form.amount.errors %}<p class="field-error" role="alert">{{ error }}</p>{% endfor %}
+            <p class="field-hint">{{ totals.available_cents|money }} available after reserved funds.</p>
+          </div>
+          {{ field(withdrawal_form.network, label="Network") }}
+        </div>
+
+        {{ field(withdrawal_form.destination_address, label="Destination wallet address", placeholder="0x…", autocomplete="off", hint="Double-check this address. A real provider would confirm ownership before payout.") }}
+
+        {{ field(withdrawal_form.acknowledge) }}
+
+        <button class="button button-primary button-full" type="submit">{{ icon("send", 15) }} Request withdrawal</button>
+      </form>
+    </section>
+
+    {% if pending_deposits or pending_withdrawals %}
+    <section class="panel" id="pending">
+      <div class="panel-head">
+        <div>
+          <span class="panel-eyebrow">In review</span>
+          <h2>Pending requests</h2>
+        </div>
+        <span class="panel-count">{{ (pending_deposits|length) + (pending_withdrawals|length) }}</span>
+      </div>
+
+      <div class="request-list">
+        {% for transaction in pending_deposits %}
+        <article class="request-card">
+          <div class="request-main">
+            <span class="ledger-icon ledger-icon-deposit">{{ icon("download", 18) }}</span>
+            <div>
+              <strong>Deposit · {{ transaction.amount_cents|money }}</strong>
+              <p>{{ networks.get(transaction.details.network, transaction.details.network) }} · {{ transaction.created_at|datetime }}</p>
+              <span class="request-ref">{{ transaction.reference }}</span>
+            </div>
+          </div>
+          <div class="request-actions">
+            <span class="status-badge status-pending"><span></span>Awaiting confirmation</span>
+            {% if demo_mode %}
+            <form method="post" action="{{ url_for('wallet.confirm_deposit', transaction_id=transaction.id) }}" data-confirm="Simulate a verified provider webhook and credit this deposit?">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button class="button button-small button-demo" type="submit">{{ icon("check", 14) }} Simulate confirmation</button>
+            </form>
+            {% endif %}
+          </div>
+        </article>
+        {% endfor %}
+
+        {% for transaction in pending_withdrawals %}
+        <article class="request-card">
+          <div class="request-main">
+            <span class="ledger-icon ledger-icon-withdrawal">{{ icon("send", 18) }}</span>
+            <div>
+              <strong>Withdrawal · {{ transaction.amount_cents|money }}</strong>
+              <p>{{ networks.get(transaction.details.network, transaction.details.network) }} → {{ transaction.details.destination_address|mask_address }}</p>
+              <span class="request-ref">{{ transaction.reference }}</span>
+            </div>
+          </div>
+          <div class="request-actions">
+            <span class="status-badge status-pending"><span></span>Reserved</span>
+            {% if demo_mode %}
+            <div class="demo-review-actions">
+              <form method="post" action="{{ url_for('wallet.approve_withdrawal', transaction_id=transaction.id) }}" data-confirm="Approve this withdrawal and mark the payout complete?">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="button button-small button-demo" type="submit">Approve</button>
+              </form>
+              <form method="post" action="{{ url_for('wallet.reject_withdrawal', transaction_id=transaction.id) }}" data-confirm="Reject this withdrawal and return the reserved funds?">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="button button-small button-ghost" type="submit">Reject</button>
+              </form>
+            </div>
+            {% endif %}
+          </div>
+        </article>
+        {% endfor %}
+      </div>
+      {% if demo_mode %}
+      <p class="panel-note">{{ icon("info", 14) }} Demo controls simulate provider webhooks and operations review. They are unavailable in production.</p>
+      {% endif %}
+    </section>
+    {% endif %}
+  </div>
+
+  <aside class="wallet-rail" id="activity">
+    <section class="panel">
+      <div class="panel-head panel-head-tight">
+        <div>
+          <span class="panel-eyebrow">Statement</span>
+          <h2>Recent activity</h2>
+        </div>
+        <a class="text-link" href="{{ url_for('activity.index') }}">All {{ icon("arrow-right", 13) }}</a>
+      </div>
+      {% if recent_transactions %}
+      <div class="ledger-list ledger-list-compact">
+        {% for transaction in recent_transactions %}
+          {{ transaction_row(transaction, show_balance=true) }}
+        {% endfor %}
+      </div>
+      {% else %}
+        {{ empty_state("No movements yet", "Your deposit requests and their settlement will appear here.", "Create a deposit", "#deposit", "wallet") }}
+      {% endif %}
+    </section>
+
+    <section class="rail-note">
+      <span>{{ icon("shield", 16) }}</span>
+      <p>Wallet balances are tenant-scoped and stored in integer cents. A real deployment would reconcile every completed row against a provider settlement report.</p>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head panel-head-tight">
+        <div>
+          <span class="panel-eyebrow">Reference</span>
+          <h2>Limits</h2>
+        </div>
+      </div>
+      <dl class="limit-list">
+        <div><dt>Minimum deposit</dt><dd>$25.00</dd></div>
+        <div><dt>Maximum deposit</dt><dd>$50,000.00</dd></div>
+        <div><dt>Minimum withdrawal</dt><dd>$20.00</dd></div>
+        <div><dt>Maximum withdrawal</dt><dd>$50,000.00</dd></div>
+      </dl>
+      <p class="panel-note">{{ icon("info", 14) }} Limits are enforced again in the service layer, not only in the form.</p>
+    </section>
+  </aside>
+</div>
+{% endblock %}

@@ -1,0 +1,106 @@
+{% extends "layouts/app.html" %}
+{% from "components/ui.html" import icon, empty_state %}
+{% from "components/ledger.html" import transaction_row with context %}
+
+{% block title %}Activity · Sigma Investments{% endblock %}
+
+{% block app_content %}
+<div class="page-head">
+  <div class="page-head-copy">
+    <span class="eyebrow"><span class="eyebrow-line"></span> Ledger / {{ pagination.total }} entries</span>
+    <h1>Every movement,<br><em>on the record.</em></h1>
+    <p>The full statement for your account. Pending rows are requests, not settled money.</p>
+  </div>
+  <div class="page-actions">
+    <a class="button button-secondary" href="{{ url_for('wallet.index') }}">{{ icon("wallet", 16) }} Wallet</a>
+    <a class="button button-primary" href="{{ url_for('portfolio.index') }}">{{ icon("layers", 16) }} Portfolio</a>
+  </div>
+</div>
+
+<section class="panel">
+  <div class="panel-head activity-head">
+    <div>
+      <span class="panel-eyebrow">Statement</span>
+      <h2>Transactions</h2>
+    </div>
+    <form class="filter-form" method="get" action="{{ url_for('activity.index') }}">
+      <label class="filter-field">
+        <span>Kind</span>
+        <select name="kind" class="filter-select">
+          <option value="">All kinds</option>
+          {% for code, label in kinds.items() %}
+          <option value="{{ code }}"{% if selected_kind == code %} selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label class="filter-field">
+        <span>Status</span>
+        <select name="status" class="filter-select">
+          <option value="">All statuses</option>
+          {% for code, label in statuses.items() %}
+          <option value="{{ code }}"{% if selected_status == code %} selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <button class="button button-small button-secondary" type="submit">Apply</button>
+    </form>
+  </div>
+
+  {% if transactions %}
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th scope="col">Date</th>
+          <th scope="col">Description</th>
+          <th scope="col">Kind</th>
+          <th scope="col">Status</th>
+          <th scope="col" class="align-right">Amount</th>
+          <th scope="col" class="align-right">Balance</th>
+          <th scope="col">Reference</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for transaction in transactions %}
+        <tr>
+          <td class="cell-date">{{ transaction.created_at|date("%b %d, %Y") }}<small>{{ transaction.created_at|date("%H:%M") }} UTC</small></td>
+          <td class="cell-description">{{ transaction.description }}</td>
+          <td>{{ kinds.get(transaction.kind, transaction.kind) }}</td>
+          <td>
+            <span class="status-badge status-{{ transaction.status }}"><span></span>{{ statuses.get(transaction.status, transaction.status|capitalize) }}</span>
+          </td>
+          <td class="align-right cell-amount {% if transaction.direction == 'credit' %}positive-text{% endif %}">
+            {{ "+" if transaction.direction == "credit" else "−" }}{{ transaction.amount_cents|money }}
+          </td>
+          <td class="align-right cell-balance">{{ transaction.balance_after_cents|money if transaction.balance_after_cents is not none else "—" }}</td>
+          <td class="cell-ref"><code>{{ transaction.reference }}</code></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if pagination.pages > 1 %}
+  <nav class="pagination" aria-label="Activity pages">
+    {% if pagination.has_prev %}
+    <a class="pagination-link" href="{{ url_for('activity.index', page=pagination.prev_num, kind=selected_kind, status=selected_status) }}">{{ icon("arrow-left", 14) }} Newer</a>
+    {% else %}
+    <span class="pagination-link is-disabled">{{ icon("arrow-left", 14) }} Newer</span>
+    {% endif %}
+    <span class="pagination-status">Page {{ pagination.page }} of {{ pagination.pages }}</span>
+    {% if pagination.has_next %}
+    <a class="pagination-link" href="{{ url_for('activity.index', page=pagination.next_num, kind=selected_kind, status=selected_status) }}">Older {{ icon("arrow-right", 14) }}</a>
+    {% else %}
+    <span class="pagination-link is-disabled">Older {{ icon("arrow-right", 14) }}</span>
+    {% endif %}
+  </nav>
+  {% endif %}
+  {% else %}
+    {{ empty_state(
+      "No entries match this filter",
+      "Try a different kind or status, or create a simulated deposit to start the ledger.",
+      "View wallet", url_for('wallet.index'), "activity"
+    ) }}
+  {% endif %}
+</section>
+{% endblock %}

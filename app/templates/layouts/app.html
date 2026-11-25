@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% from "components/ui.html" import icon, logo %}
+
+{% block body_class %}app-page{% endblock %}
+
+{% block body %}
+<div class="app-shell">
+  <div class="sidebar-overlay" data-sidebar-overlay hidden></div>
+
+  <aside class="sidebar" id="app-sidebar" aria-label="Account navigation" data-sidebar>
+    <div class="sidebar-head">
+      {{ logo() }}
+      <button class="icon-button sidebar-close" type="button" aria-label="Close menu" data-sidebar-close>
+        {{ icon("x", 20) }}
+      </button>
+    </div>
+
+    <div class="workspace-card">
+      <div class="workspace-icon">{{ current_tenant.name[:1]|upper }}</div>
+      <div class="workspace-copy">
+        <span>Workspace</span>
+        <strong>{{ current_tenant.name }}</strong>
+      </div>
+      <span class="workspace-check" title="Tenant isolated">{{ icon("shield", 15) }}</span>
+    </div>
+
+    <nav class="sidebar-nav" aria-label="Account">
+      <span class="nav-label">Overview</span>
+      <a href="{{ url_for('dashboard.index') }}" class="nav-item{% if active_page == 'dashboard' %} is-active{% endif %}" {% if active_page == 'dashboard' %}aria-current="page"{% endif %}>
+        {{ icon("grid", 19) }} <span>Dashboard</span>
+      </a>
+      <a href="{{ url_for('portfolio.index') }}" class="nav-item{% if active_page == 'portfolio' %} is-active{% endif %}" {% if active_page == 'portfolio' %}aria-current="page"{% endif %}>
+        {{ icon("layers", 19) }} <span>Portfolio</span>
+      </a>
+      <a href="{{ url_for('wallet.index') }}" class="nav-item{% if active_page == 'wallet' %} is-active{% endif %}" {% if active_page == 'wallet' %}aria-current="page"{% endif %}>
+        {{ icon("wallet", 19) }} <span>Wallet</span>
+        {% if wallet and wallet.pending_withdrawal_cents %}
+          <span class="nav-badge">{{ wallet.pending_withdrawal_cents|money }}</span>
+        {% endif %}
+      </a>
+      <a href="{{ url_for('referrals.index') }}" class="nav-item{% if active_page == 'referrals' %} is-active{% endif %}" {% if active_page == 'referrals' %}aria-current="page"{% endif %}>
+        {{ icon("users", 19) }} <span>Referrals</span>
+      </a>
+      <a href="{{ url_for('activity.index') }}" class="nav-item{% if active_page == 'activity' %} is-active{% endif %}" {% if active_page == 'activity' %}aria-current="page"{% endif %}>
+        {{ icon("activity", 19) }} <span>Activity</span>
+      </a>
+    </nav>
+
+    <div class="sidebar-lower">
+      <a class="sidebar-link" href="{{ url_for('public.landing') }}">{{ icon("external", 17) }} View public site</a>
+      <div class="sidebar-help">
+        <span class="help-icon">{{ icon("shield", 16) }}</span>
+        <div><strong>Simulation only</strong><p>Balances and payouts are fictional.</p></div>
+      </div>
+
+      <div class="user-card">
+        <div class="avatar">{{ current_user.initials }}</div>
+        <div class="user-card-copy">
+          <strong>{{ current_user.full_name }}</strong>
+          <span>{{ current_user.role|capitalize }} · {{ current_tenant.name }}</span>
+        </div>
+        <form method="post" action="{{ url_for('auth.logout') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="icon-button" type="submit" aria-label="Sign out" title="Sign out">{{ icon("logout", 18) }}</button>
+        </form>
+      </div>
+    </div>
+  </aside>
+
+  <div class="app-main">
+    <header class="app-topbar">
+      <div class="topbar-left">
+        <button class="icon-button menu-button" type="button" aria-expanded="false" aria-controls="app-sidebar" data-sidebar-open>
+          <span class="sr-only">Open navigation</span>
+          {{ icon("menu", 21) }}
+        </button>
+        <span class="topbar-breadcrumb">Sigma <span>/</span> {{ active_page|capitalize if active_page else 'Account' }}</span>
+      </div>
+      <div class="topbar-right">
+        {% if demo_mode %}
+          <span class="demo-pill"><span class="demo-pip"></span> Demo environment</span>
+        {% endif %}
+        <a class="topbar-action" href="{{ url_for('wallet.index') }}">{{ icon("plus", 15) }} Add funds</a>
+      </div>
+    </header>
+
+    <main id="main-content" class="app-content">
+      {% block app_content %}{% endblock %}
+
+      <footer class="app-footer">
+        <span>© {{ current_year }} Sigma Investments. A technical prototype.</span>
+        <span class="app-footer-links"><a href="{{ url_for('public.landing') }}">Platform overview</a><span>·</span><span>Not financial advice</span></span>
+      </footer>
+    </main>
+  </div>
+</div>
+{% endblock %}

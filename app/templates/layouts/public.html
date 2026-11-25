@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% from "components/ui.html" import icon, logo %}
+
+{% block body_class %}public-page{% endblock %}
+
+{% block body %}
+<div class="prototype-bar">
+  <span class="prototype-dot" aria-hidden="true"></span>
+  <span>Educational prototype — all balances, returns and referrals are simulated. No real funds are accepted.</span>
+</div>
+
+<header class="site-header" data-header>
+  <div class="shell header-inner">
+    {{ logo() }}
+    <nav class="desktop-nav" aria-label="Primary">
+      <a href="{{ url_for('public.landing') }}#platform">Platform</a>
+      <a href="{{ url_for('public.landing') }}#returns">Returns</a>
+      <a href="{{ url_for('public.landing') }}#referrals">Referrals</a>
+      <a href="{{ url_for('public.landing') }}#security">Security</a>
+    </nav>
+    <div class="header-actions">
+      {% if current_user %}
+        <span class="header-workspace">{{ current_tenant.name }}</span>
+        <a class="button button-small button-primary" href="{{ url_for('dashboard.index') }}">Open dashboard {{ icon("arrow-up-right", 15) }}</a>
+      {% else %}
+        <a class="nav-signin" href="{{ url_for('auth.login') }}">Sign in</a>
+        <a class="button button-small button-primary" href="{{ url_for('auth.signup') }}">Open an account {{ icon("arrow-up-right", 15) }}</a>
+      {% endif %}
+    </div>
+    <button class="icon-button mobile-toggle" type="button" aria-expanded="false" aria-controls="mobile-nav" data-menu-toggle>
+      <span class="sr-only">Open menu</span>
+      {{ icon("menu", 22) }}
+    </button>
+  </div>
+  <div class="mobile-nav" id="mobile-nav" data-mobile-menu hidden>
+    <nav aria-label="Mobile primary">
+      <a href="{{ url_for('public.landing') }}#platform">Platform</a>
+      <a href="{{ url_for('public.landing') }}#returns">Returns</a>
+      <a href="{{ url_for('public.landing') }}#referrals">Referrals</a>
+      <a href="{{ url_for('public.landing') }}#security">Security</a>
+      {% if current_user %}
+        <a href="{{ url_for('dashboard.index') }}">Dashboard</a>
+      {% else %}
+        <a href="{{ url_for('auth.login') }}">Sign in</a>
+        <a class="mobile-cta" href="{{ url_for('auth.signup') }}">Open an account</a>
+      {% endif %}
+    </nav>
+  </div>
+</header>
+
+<main id="main-content">
+  {% block content %}{% endblock %}
+</main>
+
+<footer class="site-footer">
+  <div class="shell footer-grid">
+    <div class="footer-brand">
+      {{ logo() }}
+      <p>Architecture for considered capital.<br>A design and engineering demonstration.</p>
+      <span class="status-pill"><span class="status-dot"></span> Prototype environment</span>
+    </div>
+    <div class="footer-col">
+      <h2>Explore</h2>
+      <a href="{{ url_for('public.landing') }}#platform">The platform</a>
+      <a href="{{ url_for('public.landing') }}#returns">Return schedule</a>
+      <a href="{{ url_for('public.landing') }}#referrals">Referral engine</a>
+      <a href="{{ url_for('public.landing') }}#security">Security model</a>
+    </div>
+    <div class="footer-col">
+      <h2>Access</h2>
+      {% if current_user %}
+        <a href="{{ url_for('dashboard.index') }}">Dashboard</a>
+        <a href="{{ url_for('wallet.index') }}">Wallet</a>
+        <a href="{{ url_for('referrals.index') }}">Referrals</a>
+      {% else %}
+        <a href="{{ url_for('auth.login') }}">Sign in</a>
+        <a href="{{ url_for('auth.signup') }}">Create account</a>
+        <a href="mailto:{{ support_email }}">Contact desk</a>
+      {% endif %}
+    </div>
+    <div class="footer-col footer-note">
+      <h2>A note on risk</h2>
+      <p>This is not an investment product or financial advice. Returns and referral commissions are invented for demonstration and cannot be withdrawn as real money.</p>
+    </div>
+  </div>
+  <div class="shell footer-base">
+    <span>© {{ current_year }} Sigma Investments — demonstration build</span>
+    <span>No real payments · No real custody · No investment solicitation</span>
+  </div>
+</footer>
+{% endblock %}

@@ -1,0 +1,26 @@
+# Local runtime
+.env
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Local database and Flask instance files
+instance/
+*.sqlite
+*.sqlite3
+*.db
+
+# Editor / OS noise
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Logs and screenshots produced during QA
+*.log
+qa-screenshots/

@@ -1,0 +1,4 @@
+# PostgreSQL driver for production deployments.
+# Install alongside the runtime requirements:
+#   python -m pip install -r requirements.txt -r requirements-postgres.txt
+psycopg[binary]>=3.2,<4

@@ -1,0 +1,195 @@
+{% extends "layouts/app.html" %}
+{% from "components/ui.html" import icon, field, empty_state %}
+
+{% block title %}Portfolio · Sigma Investments{% endblock %}
+
+{% block app_content %}
+<div class="page-head">
+  <div class="page-head-copy">
+    <span class="eyebrow"><span class="eyebrow-line"></span> Positions / {{ summary.active_count }} active</span>
+    <h1>Your portfolio,<br><em>in full view.</em></h1>
+    <p>Open positions, inspect their payout calendar and settle a demo month.</p>
+  </div>
+  <div class="page-actions">
+    <a class="button button-secondary" href="{{ url_for('activity.index') }}">{{ icon("activity", 16) }} Activity</a>
+    <a class="button button-primary" href="{{ url_for('wallet.index') }}">{{ icon("plus", 16) }} Add funds</a>
+  </div>
+</div>
+
+<div class="mini-stat-grid">
+  <div class="mini-stat">
+    <span>Active principal</span>
+    <strong>{{ summary.active_principal_cents|money }}</strong>
+    <small>{{ summary.active_count }} active position{{ "s" if summary.active_count != 1 }}</small>
+  </div>
+  <div class="mini-stat">
+    <span>Lifetime returns</span>
+    <strong>{{ summary.returns_earned_cents|money }}</strong>
+    <small class="positive-text">Credited to wallet</small>
+  </div>
+  <div class="mini-stat">
+    <span>Monthly income</span>
+    <strong>{{ summary.monthly_income_cents|money }}</strong>
+    <small>Scheduled, illustrative</small>
+  </div>
+  <div class="mini-stat">
+    <span>Referral earnings</span>
+    <strong>{{ referral_earnings_cents|money }}</strong>
+    <small>Across up to five levels</small>
+  </div>
+</div>
+
+<section class="plan-selector" aria-labelledby="plans-heading">
+  <div class="panel-head">
+    <div>
+      <span class="panel-eyebrow">Open a position</span>
+      <h2 id="plans-heading">Choose a horizon</h2>
+    </div>
+    <span class="chip">{{ totals.available_cents|money }} available</span>
+  </div>
+  <div class="plan-selector-grid">
+    {% for plan in plans %}
+    <article class="plan-select-card{% if plan.code == form.plan_code.data %} is-selected{% endif %}" data-plan-card="{{ plan.code }}">
+      <div class="plan-select-head">
+        <span class="plan-orb plan-orb-{{ plan.accent }}"></span>
+        <span class="plan-term">{{ plan.term_months }} mo</span>
+      </div>
+      <h3>{{ plan.name }}</h3>
+      <div class="plan-select-rate">{{ plan.monthly_rate_percent }}<span>/ month</span></div>
+      <p>{{ plan.description }}</p>
+      <div class="plan-select-foot">
+        <span>Min {{ plan.min_cents|money }}</span>
+        <button type="button" class="plan-choose" data-select-plan="{{ plan.code }}">Select {{ icon("arrow-down-left", 13) }}</button>
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+</section>
+
+<div class="portfolio-layout">
+  <div class="portfolio-main">
+    <section class="panel">
+      <div class="panel-head">
+        <div>
+          <span class="panel-eyebrow">Position ledger</span>
+          <h2>Investments</h2>
+        </div>
+        <span class="panel-count">{{ summary.investments|length }}</span>
+      </div>
+
+      {% if summary.investments %}
+      <div class="position-list">
+        {% for investment in summary.investments %}
+        <article class="position-card{% if investment.status != 'active' %} is-matured{% endif %}">
+          <div class="position-head">
+            <div class="position-identity">
+              <span class="position-mark position-mark-{{ investment.plan_code }}">{{ investment.plan_name[:1] }}</span>
+              <div>
+                <h3>{{ investment.plan_name }}</h3>
+                <span class="position-ref">Position {{ investment.id|string|upper|truncate(8, true, "") }} · {{ investment.term_months }} month term</span>
+              </div>
+            </div>
+            <span class="status-badge status-{{ 'active' if investment.status == 'active' else 'matured' }}"><span></span>{{ investment.status|capitalize }}</span>
+          </div>
+
+          <div class="position-metrics">
+            <div><span>Principal</span><strong>{{ investment.principal_cents|money }}</strong></div>
+            <div><span>Monthly rate</span><strong>{{ investment.monthly_rate_percent }}</strong></div>
+            <div><span>Monthly return</span><strong class="positive-text">+{{ investment.monthly_return_cents|money }}</strong></div>
+            <div><span>Matures</span><strong>{{ investment.matures_on|date("%b %Y") }}</strong></div>
+          </div>
+
+          <div class="position-progress">
+            <div class="position-progress-head">
+              <span>{{ investment.months_credited }} of {{ investment.term_months }} cycles settled</span>
+              <span>{{ ((investment.months_credited / investment.term_months) * 100)|round|int }}%</span>
+            </div>
+            <progress max="{{ investment.term_months }}" value="{{ investment.months_credited }}">Settled cycles</progress>
+          </div>
+
+          {% if investment.status == "active" %}
+          <div class="position-schedule">
+            <div class="position-schedule-head"><span>Next distributions</span><span>{{ investment.plan_name }} · {{ investment.monthly_rate_percent }}</span></div>
+            {% for item in schedules[investment.id] %}
+              <div class="position-schedule-row">
+                <span class="schedule-dot"></span>
+                <span>{{ item.due_on|date("%b %d, %Y") }}</span>
+                <span>Month {{ item.month_number }} / {{ investment.term_months }}</span>
+                <strong>+{{ item.amount_cents|money }}</strong>
+              </div>
+            {% else %}
+              <p class="muted-copy">No future cycles available.</p>
+            {% endfor %}
+          </div>
+
+          {% if demo_mode %}
+          <div class="demo-action-row">
+            <div><span class="demo-pip"></span><p><strong>Demo control</strong><br>Credit the next scheduled month early to inspect the ledger.</p></div>
+            <form method="post" action="{{ url_for('portfolio.simulate_return', investment_id=investment.id) }}" data-confirm="Simulate the next monthly return? This credits simulated funds to your wallet.">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button class="button button-small button-demo" type="submit">{{ icon("refresh", 14) }} Simulate next return</button>
+            </form>
+          </div>
+          {% endif %}
+          {% else %}
+          <div class="position-complete">
+            <span>{{ icon("check", 16) }}</span>
+            <p>All {{ investment.term_months }} cycles settled. Lifetime credited on this position: <strong>{{ (investment.monthly_return_cents * investment.months_credited)|money }}</strong>.</p>
+          </div>
+          {% endif %}
+        </article>
+        {% endfor %}
+      </div>
+      {% else %}
+        {{ empty_state("No positions yet", "Fund your wallet, then choose a plan to see a distribution schedule and activate referral commissions.", "Add funds", url_for('wallet.index'), "layers") }}
+      {% endif %}
+    </section>
+  </div>
+
+  <aside class="portfolio-rail">
+    <section class="panel ticket-panel" id="invest-form">
+      <div class="panel-head panel-head-tight">
+        <div>
+          <span class="panel-eyebrow">New position</span>
+          <h2>Allocation ticket</h2>
+        </div>
+        <span class="kpi-icon">{{ icon("layers", 17) }}</span>
+      </div>
+      <div class="ticket-balance">
+        <span>Available to allocate</span>
+        <strong>{{ totals.available_cents|money }}</strong>
+      </div>
+      <form method="post" action="{{ url_for('portfolio.invest') }}" class="auth-form ticket-form" novalidate>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        {{ field(form.plan_code, label="Plan") }}
+        <div class="amount-field">
+          <label class="field-label" for="{{ form.amount.id }}">Amount (USD)</label>
+          <div class="amount-input-wrap">
+            <span>$</span>
+            {{ form.amount(class="field-input", placeholder="1,000.00", inputmode="decimal") }}
+            <button type="button" class="amount-max" data-fill-max="{{ totals.available_cents }}">Max</button>
+          </div>
+          {% for error in form.amount.errors %}<p class="field-error" role="alert">{{ error }}</p>{% endfor %}
+          <div class="quick-amounts" aria-label="Quick amounts">
+            <button type="button" data-amount="1000">$1k</button>
+            <button type="button" data-amount="5000">$5k</button>
+            <button type="button" data-amount="10000">$10k</button>
+          </div>
+        </div>
+        {{ field(form.acknowledge) }}
+        <button class="button button-primary button-full" type="submit">{{ icon("plus", 15) }} Open position</button>
+      </form>
+      {% if totals.available_cents == 0 %}
+      <p class="ticket-note">{{ icon("info", 14) }} Your wallet is empty. <a href="{{ url_for('wallet.index') }}">Add simulated funds</a> first.</p>
+      {% else %}
+      <p class="ticket-note">{{ icon("info", 14) }} Referral commissions pay out immediately from the platform, up to five levels.</p>
+      {% endif %}
+    </section>
+
+    <section class="rail-note">
+      <span>{{ icon("info", 16) }}</span>
+      <p>Returns are not guaranteed, compounded or connected to real markets in this prototype. <a href="{{ url_for('public.landing') }}#returns">Read the simulation notes</a>.</p>
+    </section>
+  </aside>
+</div>
+{% endblock %}

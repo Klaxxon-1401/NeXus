@@ -1,0 +1,56 @@
+{% from "components/ui.html" import icon %}
+
+{% macro kind_icon(kind, size=18) -%}
+  {% if kind == "deposit" %}{{ icon("download", size) }}
+  {% elif kind == "withdrawal" %}{{ icon("send", size) }}
+  {% elif kind == "withdrawal_refund" %}{{ icon("refresh", size) }}
+  {% elif kind == "investment" %}{{ icon("layers", size) }}
+  {% elif kind == "return" %}{{ icon("trend", size) }}
+  {% elif kind == "referral" %}{{ icon("users", size) }}
+  {% else %}{{ icon("activity", size) }}{% endif %}
+{%- endmacro %}
+
+{% macro kind_label(kind) -%}
+  {{ transaction_kind_labels.get(kind, kind|capitalize) }}
+{%- endmacro %}
+
+{% macro status_badge(status) -%}
+  <span class="status-badge status-{{ status }}"><span></span>{{ transaction_status_labels.get(status, status|capitalize) }}</span>
+{%- endmacro %}
+
+{% macro signed_amount(transaction) -%}
+  <span class="ledger-amount ledger-{{ transaction.direction }}">{{ "+" if transaction.direction == "credit" else "−" }}{{ transaction.amount_cents|money }}</span>
+{%- endmacro %}
+
+{% macro transaction_row(transaction, show_balance=false) -%}
+<div class="ledger-row">
+  <span class="ledger-icon ledger-icon-{{ transaction.kind }}">{{ kind_icon(transaction.kind) }}</span>
+  <div class="ledger-main">
+    <div class="ledger-title">
+      <strong>{{ transaction.description }}</strong>
+      {{ status_badge(transaction.status) }}
+    </div>
+    <div class="ledger-meta">
+      <span>{{ kind_label(transaction.kind) }}</span>
+      <i>·</i>
+      <span>{{ transaction.created_at|date("%b %d, %Y") }}</span>
+      <i>·</i>
+      <span class="ledger-ref">{{ transaction.reference }}</span>
+    </div>
+  </div>
+  <div class="ledger-side">
+    {{ signed_amount(transaction) }}
+    {% if show_balance and transaction.balance_after_cents is not none %}
+      <span class="ledger-balance">Balance {{ transaction.balance_after_cents|money }}</span>
+    {% endif %}
+  </div>
+</div>
+{%- endmacro %}
+
+{% macro mini_stat(label, value, meta=None, tone="default") -%}
+<div class="mini-stat mini-stat-{{ tone }}">
+  <span>{{ label }}</span>
+  <strong>{{ value }}</strong>
+  {% if meta %}<small>{{ meta }}</small>{% endif %}
+</div>
+{%- endmacro %}

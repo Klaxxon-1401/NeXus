@@ -1,0 +1,61 @@
+{% extends "layouts/auth.html" %}
+{% from "components/ui.html" import icon, field %}
+
+{% block title %}Sign in · Sigma Investments{% endblock %}
+
+{% block auth_content %}
+<div class="auth-heading">
+  <span class="eyebrow"><span class="eyebrow-line"></span> Member access</span>
+  <h1>Welcome<br><em>back.</em></h1>
+  <p>Sign in to your workspace to see positions, distributions and the network behind them.</p>
+</div>
+
+{% if demo_accounts %}
+<div class="demo-box">
+  <div class="demo-box-head">
+    <span class="demo-pill"><span class="demo-pip"></span> Demo access</span>
+    <span>No signup needed</span>
+  </div>
+  <div class="demo-accounts">
+    {% for account in demo_accounts %}
+    <button
+      type="button"
+      class="demo-account"
+      data-demo-email="{{ account.email }}"
+      data-demo-password="{{ account.password }}"
+    >
+      <span class="demo-avatar">{{ account.name.split(' ')[0][0] }}{{ account.name.split(' ')[-1][0] }}</span>
+      <span class="demo-person"><strong>{{ account.name }}</strong><small>{{ account.role }}</small></span>
+      <span class="demo-use">Use {{ icon("arrow-right", 14) }}</span>
+    </button>
+    {% endfor %}
+  </div>
+  <p class="demo-hint">One click fills the form. Demo credentials only work while <code>DEMO_MODE</code> is on.</p>
+</div>
+{% endif %}
+
+<form class="auth-form" method="post" action="{{ url_for('auth.login') }}" novalidate>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  {% if next_target %}<input type="hidden" name="next" value="{{ next_target }}">{% endif %}
+
+  {{ field(form.email, label="Email address", placeholder="you@example.com", autocomplete="email", inputmode="email") }}
+
+  <div class="field{% if form.password.errors %} has-error{% endif %}">
+    <div class="field-label-row">
+      <label class="field-label" for="{{ form.password.id }}">Password</label>
+      <span class="field-aux">Case-sensitive</span>
+    </div>
+    <div class="password-wrap">
+      {{ form.password(class="field-input", autocomplete="current-password", placeholder="Your password") }}
+      <button type="button" class="password-toggle" data-password-toggle aria-label="Show password" aria-pressed="false">{{ icon("eye", 18) }}</button>
+    </div>
+    {% for error in form.password.errors %}<p class="field-error" role="alert">{{ error }}</p>{% endfor %}
+  </div>
+
+  <button class="button button-primary button-full button-large auth-submit" type="submit">
+    <span>Enter workspace</span>{{ icon("arrow-up-right", 17) }}
+  </button>
+</form>
+
+<p class="auth-switch">New to Sigma? <a href="{{ url_for('auth.signup') }}">Create a private workspace</a></p>
+{% endblock %}
