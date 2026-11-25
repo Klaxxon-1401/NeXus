@@ -25,65 +25,14 @@
     </div>
 
     <div class="hero-visual reveal" data-reveal-delay="2">
-      <div class="terminal-card">
-        <div class="terminal-bar">
-          <span class="window-dots" aria-hidden="true"><i></i><i></i><i></i></span>
-          <span class="terminal-title">Meridian workspace / overview</span>
-          <span class="terminal-demo">Illustration</span>
-        </div>
-        <div class="terminal-body">
-          <div class="terminal-head">
-            <div>
-              <span class="micro-label">Available capital</span>
-              <div class="terminal-balance">$18,482<span>.60</span></div>
-            </div>
-            <span class="delta-chip">{{ icon("trend", 13) }} +6.4% this cycle</span>
-          </div>
-
-          <div class="signal-chart" aria-label="Illustrative growth curve">
-            <div class="chart-axis" aria-hidden="true"><span>$32k</span><span>$20k</span><span>$8k</span></div>
-            <svg viewBox="0 0 560 190" role="img" aria-label="An upward illustrative payout curve">
-              <defs>
-                <linearGradient id="heroArea" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stop-color="#FFD600" stop-opacity=".2"/>
-                  <stop offset="100%" stop-color="#FFD600" stop-opacity="0"/>
-                </linearGradient>
-              </defs>
-              <g class="chart-lines" aria-hidden="true">
-                <line x1="0" y1="30" x2="560" y2="30"/>
-                <line x1="0" y1="90" x2="560" y2="90"/>
-                <line x1="0" y1="150" x2="560" y2="150"/>
-              </g>
-              <path d="M0 158 C42 151 58 142 92 146 S148 130 182 124 S232 134 264 110 S316 98 348 104 S398 71 432 76 S498 42 560 26 V190 H0Z" fill="url(#heroArea)"/>
-              <path d="M0 158 C42 151 58 142 92 146 S148 130 182 124 S232 134 264 110 S316 98 348 104 S398 71 432 76 S498 42 560 26" fill="none" stroke="#FFD600" stroke-width="2" stroke-linecap="round"/>
-              <circle cx="560" cy="26" r="5" fill="#FFD600"/>
-              <circle cx="560" cy="26" r="10" fill="#FFD600" fill-opacity=".16"/>
-            </svg>
-            <div class="chart-months" aria-hidden="true"><span>Jan</span><span>Mar</span><span>May</span><span>Jul</span><span>Sep</span><span>Nov</span></div>
-          </div>
-
-          <div class="terminal-metrics">
-            <div><span>Active principal</span><strong>$22,500.00</strong></div>
-            <div><span>Next cycle</span><strong>{{ (today.replace(day=1).strftime('%b %d')) }} <i>·</i> auto</strong></div>
-            <div><span>Referral depth</span><strong>5 / 5</strong></div>
-          </div>
-        </div>
-        <div class="terminal-foot">
-          <span><span class="live-dot"></span> Ledger in balance</span>
-          <span class="terminal-ref">SIG-2841-AC</span>
-        </div>
-      </div>
-
-      <div class="floating-note floating-note-a">
-        <span class="float-icon">{{ icon("users", 17) }}</span>
-        <div><span>Level 1 commission</span><strong>+$270.00</strong></div>
-        <span class="float-meta">2.25%</span>
-      </div>
-      <div class="floating-note floating-note-b">
-        <span class="float-icon float-icon-warm">{{ icon("clock", 17) }}</span>
-        <div><span>Next distribution</span><strong>28 days</strong></div>
-        <span class="float-meta">automatic</span>
-      </div>
+      <img
+        class="hero-promo-image"
+        src="{{ url_for('static', filename='img/whatsapp-investment-promo.jpeg') }}"
+        alt="Promotional graphic advertising a ₹105,000 investment and monthly returns."
+        width="688"
+        height="656"
+        fetchpriority="high"
+      >
     </div>
   </div>
 

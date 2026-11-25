@@ -1275,6 +1275,17 @@ code {
   min-width: 0;
 }
 
+.hero-promo-image {
+  display: block;
+  width: 100%;
+  max-width: 688px;
+  height: auto;
+  margin-inline: auto;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+}
+
 .terminal-card {
   position: relative;
   overflow: hidden;
