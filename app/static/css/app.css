@@ -1438,10 +1438,10 @@ code {
 }
 
 .distribution-card-foot p {
-  max-width: 330px;
-  color: var(--muted);
-  font-size: var(--text-xs);
-  line-height: 1.6;
+  max-width: 400px;
+  color: var(--bone-dim);
+  font-size: clamp(0.95rem, 1.1vw, 1.125rem);
+  line-height: 1.55;
 }
 
 .distribution-term {
