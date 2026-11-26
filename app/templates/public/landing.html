@@ -25,14 +25,43 @@
     </div>
 
     <div class="hero-visual reveal" data-reveal-delay="2">
-      <img
-        class="hero-promo-image"
-        src="{{ url_for('static', filename='img/whatsapp-investment-promo.jpeg') }}"
-        alt="Promotional graphic advertising a ₹105,000 investment and monthly returns."
-        width="688"
-        height="656"
-        fetchpriority="high"
-      >
+      <section class="distribution-card" aria-label="Illustrative investment and payment schedule">
+        <header class="distribution-card-head">
+          <span class="eyebrow eyebrow-light"><span></span> Distribution illustration</span>
+          <span class="distribution-network">USDT <i>·</i> BEP20</span>
+        </header>
+
+        <div class="distribution-summary">
+          <div class="distribution-principal">
+            <span class="micro-label">Investment amount</span>
+            <strong>₹1,05,000</strong>
+          </div>
+          <div class="distribution-monthly">
+            <span class="micro-label">Per month</span>
+            <strong>₹10,000</strong>
+          </div>
+        </div>
+
+        <p class="distribution-equation"><span>₹5,000</span><i>+</i><span>₹5,000</span><i>=</i><strong>₹10,000 per month</strong></p>
+
+        <div class="distribution-schedule" aria-label="Two monthly installments">
+          <div class="distribution-installment">
+            <span class="installment-day">01</span>
+            <span class="installment-date">On the 1st</span>
+            <strong>₹5,000</strong>
+          </div>
+          <div class="distribution-installment">
+            <span class="installment-day">16</span>
+            <span class="installment-date">On the 16th</span>
+            <strong>₹5,000</strong>
+          </div>
+        </div>
+
+        <footer class="distribution-card-foot">
+          <p>Returns are paid twice a month: once on the 1st and once on the 16th. Receive returns in two installments every month.</p>
+          <div class="distribution-term"><span>Payments over</span><strong>25 months</strong></div>
+        </footer>
+      </section>
     </div>
   </div>
 
