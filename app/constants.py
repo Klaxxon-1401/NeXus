@@ -94,6 +94,7 @@ DEMO_ACCOUNTS = (
     {"name": "Alex Morgan", "email": "alex@sigma.demo", "role": "Workspace owner"},
     {"name": "Maya Chen", "email": "maya@sigma.demo", "role": "Investor · Level 1"},
     {"name": "Priya Shah", "email": "priya@sigma.demo", "role": "Investor · Level 2"},
+    {"name": "Admin User", "email": "admin@sigma.demo", "role": "admin"},
 )
 
 
