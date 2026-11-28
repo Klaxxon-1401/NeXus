@@ -260,6 +260,9 @@
             <td><span class="network-badge">{{ tx.details.network|default("—")|title }}</span></td>
             <td>
               <code style="font-size: var(--text-xs); color: var(--muted);">{{ tx.details.source_address|default("—") }}</code>
+              {% if tx.details.get("user_transaction_id") %}
+              <p class="admin-tx-id">User TX: {{ tx.details.user_transaction_id }}</p>
+              {% endif %}
             </td>
             <td>
               {% if tx.external_reference %}

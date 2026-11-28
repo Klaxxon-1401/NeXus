@@ -92,7 +92,7 @@
           </div>
         </details>
 
-        {{ field(deposit_form.tx_hash, label="Transaction hash (optional)", placeholder="0x…", autocomplete="off", hint="If supplied, the same hash cannot be submitted twice in this workspace.") }}
+        {{ field(deposit_form.transaction_id, label="Transaction ID (optional)", placeholder="e.g. TX-1234567890", autocomplete="off", hint="If supplied, displayed in pending requests and admin panel.") }}
 
         <button class="button button-primary button-full" type="submit">{{ icon("download", 15) }} Create deposit request</button>
       </form>
@@ -150,6 +150,9 @@
               <strong>Deposit · {{ transaction.amount_cents|money }}</strong>
               <p>{{ networks.get(transaction.details.network, transaction.details.network) }} · {{ transaction.created_at|datetime }}</p>
               <span class="request-ref">{{ transaction.reference }}</span>
+              {% if transaction.details.get("user_transaction_id") %}
+              <p class="user-tx-id">TX ID: {{ transaction.details.user_transaction_id }}</p>
+              {% endif %}
             </div>
           </div>
           <div class="request-actions">

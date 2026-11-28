@@ -136,10 +136,11 @@ class DepositForm(FlaskForm):
         filters=[_strip],
         validators=[DataRequired(), Length(min=20, max=128)],
     )
-    tx_hash = StringField(
-        "Transaction hash (optional)",
+    transaction_id = StringField(
+        "Transaction ID (optional)",
         filters=[_strip],
-        validators=[Length(max=128)],
+        validators=[Length(max=64)],
+        render_kw={"placeholder": "e.g. TX-1234567890"},
     )
     submit = SubmitField("Create deposit request")
 

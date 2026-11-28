@@ -47,6 +47,7 @@ def request_deposit(
     network: str,
     source_address: str,
     tx_hash: str | None = None,
+    transaction_id: str | None = None,
 ) -> Transaction:
     """Create a pending deposit intent after format validation.
 
@@ -70,6 +71,14 @@ def request_deposit(
             raise ServiceError("That transaction hash has already been submitted.")
 
     platform_address = deposit_address_for(network)
+    # Store the user-provided transaction ID in details for admin visibility
+    details = {
+        "network": network,
+        "source_address": source_address,
+        "platform_address": platform_address,
+        "provider": "manual-demo",
+        "user_transaction_id": transaction_id,
+    }
     request = Transaction(
         tenant_id=user.tenant_id,
         user_id=user.id,
@@ -80,12 +89,7 @@ def request_deposit(
         balance_after_cents=None,
         description=f"Deposit via {network.title()} awaiting confirmation",
         external_reference=tx_hash,
-        details={
-            "network": network,
-            "source_address": source_address,
-            "platform_address": platform_address,
-            "provider": "manual-demo",
-        },
+        details=details,
     )
     db.session.add(request)
     try:
