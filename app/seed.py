@@ -12,7 +12,16 @@ from flask import current_app
 from sqlalchemy import select
 
 from .extensions import db
-from .models import Investment, Referral, ReferralCommission, Tenant, Transaction, User
+from .models import (
+    Investment,
+    Referral,
+    ReferralCommission,
+    Tenant,
+    Transaction,
+    User,
+    Wallet,
+)
+from .models.user import generate_referral_code
 from .services.auth import register_user
 from .services.investments import create_investment, credit_due_returns
 from .services.wallet import (
@@ -226,6 +235,124 @@ def seed_demo() -> bool:
     )
 
     return True
+
+
+def _unique_referral_code() -> str:
+    for _ in range(20):
+        code = generate_referral_code()
+        if not db.session.scalar(select(User.id).where(User.referral_code == code)):
+            return code
+    raise RuntimeError("Could not allocate a unique demo referral code.")
+
+
+def ensure_demo_accounts() -> dict[str, list[str]]:
+    """Create or repair demo sign-in accounts on an existing database.
+
+    ``seed_demo`` is a one-shot bootstrap: once the Meridian Circle tenant
+    exists it returns early, so accounts added to ``DEMO_PEOPLE`` by later
+    releases never reach a database seeded by an older build (this is how the
+    hosted admin account went missing). This routine is idempotent and safe to
+    run on every boot. It only fills gaps: balances, positions and ledger rows
+    are never touched.
+
+    Returns the emails that were created and those that needed repair.
+    """
+    if not current_app.config.get("DEMO_MODE"):
+        raise RuntimeError("Refusing to prepare demo accounts outside DEMO_MODE.")
+
+    tenant = db.session.scalar(select(Tenant).where(Tenant.slug == "meridian-circle"))
+    if tenant is None:
+        # Fresh database: the full seed already creates every demo account.
+        seed_demo()
+        return {"created": [email for _n, email, _r, _s in DEMO_PEOPLE], "repaired": []}
+
+    password = current_app.config["DEMO_PASSWORD"]
+    created: list[str] = []
+    repaired: list[str] = []
+    users: dict[str, User] = {}
+
+    for name, email, referred_by_email, seed_role in DEMO_PEOPLE:
+        user = db.session.scalar(select(User).where(User.email == email))
+
+        if user is None:
+            role = (
+                "admin"
+                if seed_role == "admin"
+                else "investor" if referred_by_email else "owner"
+            )
+            user = User(
+                tenant_id=tenant.id,
+                email=email,
+                full_name=name,
+                role=role,
+                referral_code=_unique_referral_code(),
+            )
+            user.set_password(password)
+            db.session.add(user)
+            db.session.flush()
+            db.session.add(
+                Wallet(
+                    tenant_id=tenant.id,
+                    user_id=user.id,
+                    available_balance_cents=0,
+                    pending_withdrawal_cents=0,
+                )
+            )
+            created.append(email)
+        else:
+            changed = False
+            if seed_role == "admin" and user.role != "admin":
+                user.role = "admin"
+                changed = True
+            if user.status != "active":
+                user.status = "active"
+                changed = True
+            if user.tenant is not None and user.tenant.status != "active":
+                user.tenant.status = "active"
+                changed = True
+            # Keep hosted demo credentials deterministic. Only re-hash when the
+            # configured demo password no longer matches, so unchanged boots
+            # do no unnecessary work.
+            if not user.check_password(password):
+                user.set_password(password)
+                changed = True
+            if changed:
+                repaired.append(email)
+
+            has_wallet = db.session.scalar(
+                select(Wallet.id).where(Wallet.user_id == user.id)
+            )
+            if not has_wallet:
+                db.session.add(
+                    Wallet(
+                        tenant_id=tenant.id,
+                        user_id=user.id,
+                        available_balance_cents=0,
+                        pending_withdrawal_cents=0,
+                    )
+                )
+                if email not in repaired:
+                    repaired.append(email)
+
+        users[email] = user
+
+        referrer = users.get(referred_by_email) if referred_by_email else None
+        if referrer is not None:
+            edge = db.session.scalar(
+                select(Referral).where(Referral.referred_user_id == user.id)
+            )
+            if edge is None:
+                db.session.add(
+                    Referral(
+                        tenant_id=tenant.id,
+                        referrer_id=referrer.id,
+                        referred_user_id=user.id,
+                        code_used=referrer.referral_code,
+                    )
+                )
+
+    db.session.commit()
+    return {"created": created, "repaired": repaired}
 
 
 def _backdate_transaction(transaction: Transaction, *, months_ago: int) -> None:

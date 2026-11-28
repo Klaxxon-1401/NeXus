@@ -40,11 +40,12 @@ After seeding, sign in with:
 
 | Account | Role | Email | Password |
 | --- | --- | --- | --- |
+| Admin User | Administrator | `admin@sigma.demo` | `SigmaDemo!2026` |
 | Alex Morgan | Workspace owner | `alex@sigma.demo` | `SigmaDemo!2026` |
 | Maya Chen | Investor · direct invite | `maya@sigma.demo` | `SigmaDemo!2026` |
 | Priya Shah | Investor · second level | `priya@sigma.demo` | `SigmaDemo!2026` |
 
-All eight seeded users share the same demo password. The seeded workspace is
+All nine seeded users share the same demo password. The seeded workspace is
 **Meridian Circle** (`meridian-circle`). The referral chain is:
 
 ```
@@ -86,8 +87,10 @@ The repository includes a `render.yaml` Blueprint for the full Flask site and
 PostgreSQL database. Push this repository to GitHub, then in Render choose
 **New → Blueprint** and connect the repository. Render will create the web
 service and database, generate a secret key, and seed the fictional demo
-workspace before each server start (the seed command only creates demo data
-once). Open the service URL and sign in with
+workspace before each server start. Later boots also run an idempotent
+account-repair step, so demo sign-ins added by newer releases (such as
+`admin@sigma.demo`) appear even when the database was seeded by an older build.
+Open the service URL and sign in with
 `alex@sigma.demo` / `SigmaDemo!2026`.
 
 This hosted configuration keeps the simulated wallet and return workflows
@@ -118,6 +121,9 @@ pytest --cov=app --cov-report=term-missing
 
 # Seed only (refuses to run in production)
 flask --app run.py seed-demo
+
+# Create or repair demo sign-ins on an already-seeded database
+flask --app run.py ensure-demo
 
 # Catch up all monthly returns due today
 flask --app run.py credit-returns
@@ -163,7 +169,7 @@ sigma-investments/
 │   ├── forms.py             # WTForms validation
 │   ├── security.py          # sessions, login guard, CSP and headers
 │   ├── seed.py              # fictional Meridian Circle workspace
-│   ├── cli.py               # init-db, seed-demo, credit-returns
+│   ├── cli.py               # init-db, seed-demo, ensure-demo, credit-returns
 │   ├── models/              # Tenant, User, Wallet, Investment, Transaction, Referral
 │   ├── services/            # auth, ledger, wallet, investments, referrals, payments
 │   ├── routes/              # public, auth, dashboard, portfolio, wallet, referrals, activity

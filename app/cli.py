@@ -9,7 +9,7 @@ from flask import current_app
 from flask.cli import with_appcontext
 
 from .extensions import db
-from .seed import seed_demo
+from .seed import ensure_demo_accounts, seed_demo
 from .services.investments import credit_due_returns
 
 
@@ -29,7 +29,30 @@ def init_db_command(seed: bool) -> None:
         if created:
             click.echo("Demo workspace seeded. Sign in with alex@sigma.demo.")
         else:
-            click.echo("Demo workspace already exists; no changes made.")
+            click.echo("Demo workspace already exists; top-up check running.")
+        # Repairs databases seeded by older releases (e.g. a missing admin
+        # account) without touching existing balances or transactions.
+        result = ensure_demo_accounts()
+        if result["created"] or result["repaired"]:
+            click.echo(
+                "Demo accounts created: "
+                f"{', '.join(result['created']) or 'none'}; repaired: "
+                f"{', '.join(result['repaired']) or 'none'}."
+            )
+
+
+@click.command("ensure-demo")
+@with_appcontext
+def ensure_demo_command() -> None:
+    """Create or repair the demo sign-in accounts (idempotent)."""
+    if current_app.config.get("ENV_NAME") == "production":
+        raise click.ClickException("Refusing to prepare demo accounts in production.")
+    result = ensure_demo_accounts()
+    click.echo(
+        "Demo accounts ready. Created: "
+        f"{', '.join(result['created']) or 'none'}; repaired: "
+        f"{', '.join(result['repaired']) or 'none'}."
+    )
 
 
 @click.command("seed-demo")
@@ -68,4 +91,5 @@ def credit_returns_command(as_of: datetime | None) -> None:
 def register_cli(app) -> None:
     app.cli.add_command(init_db_command)
     app.cli.add_command(seed_demo_command)
+    app.cli.add_command(ensure_demo_command)
     app.cli.add_command(credit_returns_command)
