@@ -1,0 +1,199 @@
+{% extends "layouts/app.html" %}
+
+{% block title %}All Users{% endblock %}
+
+{% block meta_description %}Admin user management.{% endblock %}
+
+{% block page_css %}
+<style>
+  .admin-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--text-sm);
+  }
+  .admin-table th,
+  .admin-table td {
+    padding: 12px 16px;
+    text-align: left;
+    border-bottom: 1px solid var(--line);
+  }
+  .admin-table th {
+    background: var(--ink-2);
+    font-size: var(--text-xs);
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--faint);
+  }
+  .admin-table tbody tr:hover {
+    background: rgba(245, 243, 237, 0.02);
+  }
+  .admin-table td {
+    color: var(--bone-dim);
+  }
+  .admin-table .amount {
+    font-family: var(--font-display);
+    font-style: italic;
+    font-weight: 400;
+    white-space: nowrap;
+  }
+  .admin-table .reference {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: var(--text-xs);
+  }
+  .admin-table .role-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: var(--text-xs);
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .role-owner { background: rgba(255, 214, 0, 0.12); color: var(--gold); border: 1px solid rgba(255, 214, 0, 0.25); }
+  .role-admin { background: rgba(255, 184, 0, 0.12); color: var(--amber); border: 1px solid rgba(255, 184, 0, 0.25); }
+  .role-investor { background: rgba(155, 150, 140, 0.12); color: var(--muted); border: 1px solid rgba(155, 150, 140, 0.25); }
+  .table-wrapper {
+    overflow-x: auto;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+  }
+  .pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-sm);
+    margin-top: var(--space-xl);
+    flex-wrap: wrap;
+  }
+  .pagination a,
+  .pagination span {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 36px;
+    height: 36px;
+    padding: 0 10px;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    color: var(--bone-dim);
+    font-size: var(--text-sm);
+    font-weight: 500;
+  }
+  .pagination a:hover {
+    border-color: var(--gold);
+    color: var(--gold);
+    background: rgba(255, 214, 0, 0.05);
+  }
+  .pagination .current {
+    border-color: var(--gold);
+    background: var(--gold);
+    color: #0a0a0a;
+  }
+  .pagination .disabled {
+    opacity: 0.4;
+    pointer-events: none;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="shell">
+  <div class="page-head">
+    <div class="page-head-copy">
+      <span class="eyebrow">{{ icon("users", 16) }} Admin panel</span>
+      <h1>All users</h1>
+      <p>Browse all users across workspaces with wallet balances.</p>
+    </div>
+    <div class="page-actions">
+      <a class="button button-primary" href="{{ url_for('admin.dashboard') }}">{{ icon("shield", 16) }} Back to operations</a>
+    </div>
+  </div>
+
+  <div class="panel">
+    {% if users %}
+    <div class="table-wrapper">
+      <table class="admin-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Role</th>
+            <th>Workspace</th>
+            <th>Available balance</th>
+            <th>Pending withdrawal</th>
+            <th>Joined</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for user, available_cents, pending_cents in users %}
+          <tr>
+            <td>
+              <strong>{{ user.full_name }}</strong>
+              {% if user.referral_code %}
+              <br><code style="font-size: var(--text-xs); color: var(--faint);">{{ user.referral_code }}</code>
+              {% endif %}
+            </td>
+            <td>{{ user.email }}</td>
+            <td>
+              <span class="role-badge role-{{ user.role }}">{{ user.role }}</span>
+            </td>
+            <td>
+              <span class="tenant-badge">{{ user.tenant.name }}</span>
+              <br><small style="color: var(--faint);">{{ user.tenant.slug }}</small>
+            </td>
+            <td>
+              {% if available_cents is not none %}
+              <span class="amount positive">${{ "{:,.2f}".format(available_cents / 100) }}</span>
+              {% else %}
+              <span style="color: var(--faint);">—</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if pending_cents is not none and pending_cents > 0 %}
+              <span class="amount negative">${{ "{:,.2f}".format(pending_cents / 100) }}</span>
+              {% else %}
+              <span style="color: var(--faint);">$0.00</span>
+              {% endif %}
+            </td>
+            <td style="font-size: var(--text-xs); color: var(--muted);">{{ user.created_at.strftime("%Y-%m-%d") }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {% if total_pages > 1 %}
+    <nav class="pagination" aria-label="Users pagination">
+      {% if page > 1 %}
+      <a href="{{ url_for('admin.users', page=page-1) }}" rel="prev">{{ icon("chevron-left", 14) }} Prev</a>
+      {% else %}
+      <span class="disabled">{{ icon("chevron-left", 14) }} Prev</span>
+      {% endif %}
+
+      {% for p in range(max(1, page-2), min(total_pages, page+2)+1) %}
+      {% if p == page %}
+      <span class="current">{{ p }}</span>
+      {% else %}
+      <a href="{{ url_for('admin.users', page=p) }}">{{ p }}</a>
+      {% endif %}
+      {% endfor %}
+
+      {% if page < total_pages %}
+      <a href="{{ url_for('admin.users', page=page+1) }}" rel="next">Next {{ icon("chevron-right", 14) }}</a>
+      {% else %}
+      <span class="disabled">Next {{ icon("chevron-right", 14) }}</span>
+      {% endif %}
+    </nav>
+    {% endif %}
+    {% else %}
+    <div class="empty-state">
+      {{ icon("users", 32) }}
+      <p style="margin-top: var(--space-md);">No users found.</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

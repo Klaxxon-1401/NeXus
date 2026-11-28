@@ -1,6 +1,7 @@
 """Blueprint registration."""
 
 from .activity import activity_bp
+from .admin import admin_bp
 from .auth import auth_bp
 from .dashboard import dashboard_bp
 from .portfolio import portfolio_bp
@@ -16,6 +17,7 @@ ALL_BLUEPRINTS = (
     wallet_bp,
     referrals_bp,
     activity_bp,
+    admin_bp,
 )
 
 __all__ = ["ALL_BLUEPRINTS"]

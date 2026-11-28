@@ -1,0 +1,360 @@
+{% extends "layouts/app.html" %}
+
+{% block title %}Admin Dashboard{% endblock %}
+
+{% block meta_description %}Admin panel for reviewing pending deposits and withdrawals.{% endblock %}
+
+{% block page_css %}
+<style>
+  .admin-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--text-sm);
+  }
+  .admin-table th,
+  .admin-table td {
+    padding: 12px 16px;
+    text-align: left;
+    border-bottom: 1px solid var(--line);
+  }
+  .admin-table th {
+    background: var(--ink-2);
+    font-size: var(--text-xs);
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--faint);
+  }
+  .admin-table tbody tr:hover {
+    background: rgba(245, 243, 237, 0.02);
+  }
+  .admin-table td {
+    color: var(--bone-dim);
+  }
+  .admin-table .amount {
+    font-family: var(--font-display);
+    font-style: italic;
+    font-weight: 400;
+    white-space: nowrap;
+  }
+  .admin-table .amount.positive { color: var(--gold); }
+  .admin-table .amount.negative { color: var(--danger); }
+  .admin-table .reference {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: var(--text-xs);
+  }
+  .admin-table .user-link {
+    color: var(--gold);
+    font-weight: 500;
+  }
+  .admin-table .user-link:hover { text-decoration: underline; }
+  .admin-table .tenant-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 8px;
+    border: 1px solid var(--line-strong);
+    border-radius: 999px;
+    font-size: var(--text-xs);
+    color: var(--muted);
+  }
+  .admin-table .network-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border: 1px solid rgba(255, 214, 0, 0.2);
+    border-radius: 999px;
+    background: rgba(255, 214, 0, 0.05);
+    font-size: var(--text-xs);
+    font-weight: 600;
+    color: var(--gold);
+  }
+  .table-wrapper {
+    overflow-x: auto;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+  }
+  .empty-state {
+    padding: var(--space-3xl);
+    text-align: center;
+    color: var(--muted);
+  }
+  .section-card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+  }
+  .section-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-lg) var(--space-xl);
+    border-bottom: 1px solid var(--line);
+    background: var(--ink-2);
+  }
+  .section-head h3 { font-size: var(--text-lg); }
+  .section-count {
+    font-size: var(--text-sm);
+    color: var(--faint);
+  }
+  .section-count strong { color: var(--gold); }
+  .filter-bar {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    padding: var(--space-lg) var(--space-xl);
+    border-bottom: 1px solid var(--line);
+    background: var(--surface);
+    flex-wrap: wrap;
+  }
+  .filter-form { display: flex; align-items: center; gap: var(--space-md); flex: 1; }
+  .filter-select {
+    padding: 10px 14px;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-sm);
+    background: var(--ink-2);
+    color: var(--bone);
+    font-size: var(--text-sm);
+    min-width: 220px;
+  }
+  .filter-select:focus {
+    border-color: var(--gold);
+    box-shadow: 0 0 0 3px rgba(255, 214, 0, 0.12);
+    outline: none;
+  }
+  .withdrawal-actions {
+    display: flex;
+    gap: var(--space-sm);
+    flex-wrap: wrap;
+  }
+  .external-tx-input {
+    width: 220px;
+    padding: 8px 12px;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-sm);
+    background: var(--ink-2);
+    color: var(--bone);
+    font-size: var(--text-sm);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  .external-tx-input:focus {
+    border-color: var(--gold);
+    box-shadow: 0 0 0 3px rgba(255, 214, 0, 0.12);
+    outline: none;
+  }
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: var(--space-lg);
+    padding: var(--space-xl);
+    border-bottom: 1px solid var(--line);
+    background: var(--ink-2);
+  }
+  .stat-card {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xs);
+  }
+  .stat-label {
+    font-size: var(--text-xs);
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--faint);
+  }
+  .stat-value {
+    font-family: var(--font-display);
+    font-style: italic;
+    font-size: var(--text-2xl);
+    color: var(--gold);
+  }
+  .stat-value.secondary { color: var(--bone); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="shell">
+  <div class="page-head">
+    <div class="page-head-copy">
+      <span class="eyebrow">{{ icon("shield", 16) }} Admin panel</span>
+      <h1>Wallet operations review</h1>
+      <p>Approve or reject pending deposits and withdrawals across all workspaces.</p>
+    </div>
+    <div class="page-actions">
+      <a class="button button-secondary" href="{{ url_for('admin.users') }}">{{ icon("users", 16) }} All users</a>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-grid">
+    <div class="stat-card">
+      <span class="stat-label">Pending deposits</span>
+      <span class="stat-value">${{ "{:,.2f}".format(total_pending_deposits / 100) }}</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-label">Pending withdrawals</span>
+      <span class="stat-value secondary">${{ "{:,.2f}".format(total_pending_withdrawals / 100) }}</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-label">Deposit requests</span>
+      <span class="stat-value">{{ pending_deposits|length }}</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-label">Withdrawal requests</span>
+      <span class="stat-value">{{ pending_withdrawals|length }}</span>
+    </div>
+  </div>
+
+  <!-- Tenant filter -->
+  <div class="filter-bar">
+    <form class="filter-form" method="get">
+      <label for="tenant_id" class="sr-only">Filter by workspace</label>
+      <select name="tenant_id" id="tenant_id" class="filter-select" onchange="this.form.submit()">
+        <option value="">All workspaces</option>
+        {% for tenant in tenants %}
+        <option value="{{ tenant.id }}" {% if tenant.id == selected_tenant_id %}selected{% endif %}>
+          {{ tenant.name }} ({{ tenant.slug }})
+        </option>
+        {% endfor %}
+      </select>
+      {% if selected_tenant_id %}
+      <a class="button button-ghost button-sm" href="{{ url_for('admin.dashboard') }}">Clear filter</a>
+      {% endif %}
+    </form>
+  </div>
+
+  <!-- Pending Deposits -->
+  <section class="section-card">
+    <div class="section-head">
+      <h3>{{ icon("download", 18) }} Pending deposits</h3>
+      <span class="section-count">{{ pending_deposits|length }} request{% if pending_deposits|length != 1 %}s{% endif %}</span>
+    </div>
+    {% if pending_deposits %}
+    <div class="table-wrapper">
+      <table class="admin-table">
+        <thead>
+          <tr>
+            <th>Reference</th>
+            <th>User</th>
+            <th>Workspace</th>
+            <th>Amount</th>
+            <th>Network</th>
+            <th>Source address</th>
+            <th>TX hash</th>
+            <th>Created</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for tx in pending_deposits %}
+          <tr>
+            <td><span class="reference">{{ tx.reference }}</span></td>
+            <td>
+              <a class="user-link" href="mailto:{{ tx.user.email }}">{{ tx.user.full_name }}</a>
+              <br><small style="color: var(--faint);">{{ tx.user.email }}</small>
+            </td>
+            <td>
+              <span class="tenant-badge">{{ tx.user.tenant.name }}</span>
+            </td>
+            <td><span class="amount positive">${{ "{:,.2f}".format(tx.amount_cents / 100) }}</span></td>
+            <td><span class="network-badge">{{ tx.details.network|default("—")|title }}</span></td>
+            <td>
+              <code style="font-size: var(--text-xs); color: var(--muted);">{{ tx.details.source_address|default("—") }}</code>
+            </td>
+            <td>
+              {% if tx.external_reference %}
+              <code style="font-size: var(--text-xs); color: var(--gold);">{{ tx.external_reference }}</code>
+              {% else %}
+              <span style="color: var(--faint); font-size: var(--text-xs);">—</span>
+              {% endif %}
+            </td>
+            <td style="font-size: var(--text-xs); color: var(--muted);">{{ tx.created_at.strftime("%Y-%m-%d %H:%M") }}</td>
+            <td>
+              <div class="withdrawal-actions">
+                <form method="post" action="{{ url_for('admin.approve_deposit', transaction_id=tx.id, tenant_id=selected_tenant_id) }}">
+                  <button class="button button-primary button-sm" type="submit">{{ icon("check", 14) }} Approve</button>
+                </form>
+                <form method="post" action="{{ url_for('admin.reject_deposit', transaction_id=tx.id, tenant_id=selected_tenant_id) }}">
+                  <button class="button button-secondary button-sm" type="submit">{{ icon("x", 14) }} Reject</button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+      {{ icon("inbox", 32) }}
+      <p style="margin-top: var(--space-md);">No pending deposits.</p>
+    </div>
+    {% endif %}
+  </section>
+
+  <!-- Pending Withdrawals -->
+  <section class="section-card" style="margin-top: var(--space-xl);">
+    <div class="section-head">
+      <h3>{{ icon("upload", 18) }} Pending withdrawals</h3>
+      <span class="section-count">{{ pending_withdrawals|length }} request{% if pending_withdrawals|length != 1 %}s{% endif %}</span>
+    </div>
+    {% if pending_withdrawals %}
+    <div class="table-wrapper">
+      <table class="admin-table">
+        <thead>
+          <tr>
+            <th>Reference</th>
+            <th>User</th>
+            <th>Workspace</th>
+            <th>Amount</th>
+            <th>Network</th>
+            <th>Destination</th>
+            <th>Created</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for tx in pending_withdrawals %}
+          <tr>
+            <td><span class="reference">{{ tx.reference }}</span></td>
+            <td>
+              <a class="user-link" href="mailto:{{ tx.user.email }}">{{ tx.user.full_name }}</a>
+              <br><small style="color: var(--faint);">{{ tx.user.email }}</small>
+            </td>
+            <td>
+              <span class="tenant-badge">{{ tx.user.tenant.name }}</span>
+            </td>
+            <td><span class="amount negative">${{ "{:,.2f}".format(tx.amount_cents / 100) }}</span></td>
+            <td><span class="network-badge">{{ tx.details.network|default("—")|title }}</span></td>
+            <td>
+              <code style="font-size: var(--text-xs); color: var(--muted);">{{ tx.details.destination_address|default("—") }}</code>
+            </td>
+            <td style="font-size: var(--text-xs); color: var(--muted);">{{ tx.created_at.strftime("%Y-%m-%d %H:%M") }}</td>
+            <td>
+              <form method="post" action="{{ url_for('admin.approve_withdrawal', transaction_id=tx.id, tenant_id=selected_tenant_id) }}" style="display: flex; gap: var(--space-sm); flex-wrap: wrap;">
+                <input
+                  type="text"
+                  name="external_transaction_id"
+                  class="external-tx-input"
+                  placeholder="External TX ID (required)"
+                  required
+                  aria-label="External transaction ID"
+                >
+                <button class="button button-primary button-sm" type="submit">{{ icon("check", 14) }} Approve</button>
+                <button class="button button-secondary button-sm" type="button" formaction="{{ url_for('admin.reject_withdrawal', transaction_id=tx.id, tenant_id=selected_tenant_id) }}" formmethod="post">{{ icon("x", 14) }} Reject</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+      {{ icon("inbox", 32) }}
+      <p style="margin-top: var(--space-md);">No pending withdrawals.</p>
+    </div>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

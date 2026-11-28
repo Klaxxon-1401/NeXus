@@ -122,6 +122,24 @@ def demo_only(view):
     return wrapped
 
 
+def admin_required(view):
+    """Restrict access to users with the 'admin' role."""
+
+    @functools.wraps(view)
+    def wrapped(*args, **kwargs):
+        if g.user is None:
+            flash("Sign in to continue.", "warning")
+            next_path = safe_redirect_target(request.full_path.rstrip("?"))
+            if request.method == "GET" and next_path:
+                return redirect(url_for("auth.login", next=next_path))
+            return redirect(url_for("auth.login"))
+        if g.user.role != "admin":
+            abort(403)
+        return view(*args, **kwargs)
+
+    return wrapped
+
+
 def post_only_redirect(endpoint: str):
     """Helper used by templates to avoid dead links to form-only actions."""
     return redirect(url_for(endpoint))

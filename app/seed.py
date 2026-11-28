@@ -23,6 +23,7 @@ from .services.wallet import (
 from .utils import add_months, utc_today
 
 DEMO_PEOPLE = (
+    ("Admin User", "admin@sigma.demo", None, "admin"),
     ("Alex Morgan", "alex@sigma.demo", None, ""),
     ("Maya Chen", "maya@sigma.demo", "alex@sigma.demo", "meridian"),
     ("Jonas Reed", "jonas@sigma.demo", "alex@sigma.demo", "foundation"),
@@ -38,6 +39,7 @@ DEMO_PEOPLE = (
 # before the person they invited, and every member joined before their first
 # backdated position opened.
 DEMO_JOINED_MONTHS_AGO = {
+    "admin@sigma.demo": 12,
     "alex@sigma.demo": 12,
     "maya@sigma.demo": 10,
     "jonas@sigma.demo": 9,
@@ -49,6 +51,7 @@ DEMO_JOINED_MONTHS_AGO = {
 }
 
 DEMO_POSITIONS = {
+    "admin@sigma.demo": [],
     "alex@sigma.demo": [
         ("meridian", 20_000, 4, 35_000),
         ("foundation", 2_500, 2, 0),
@@ -83,7 +86,7 @@ def seed_demo() -> bool:
     password = current_app.config["DEMO_PASSWORD"]
     users: dict[str, User] = {}
 
-    for index, (name, email, referred_by_email, _seed_plan) in enumerate(DEMO_PEOPLE):
+    for index, (name, email, referred_by_email, seed_role) in enumerate(DEMO_PEOPLE):
         referrer = users.get(referred_by_email) if referred_by_email else None
         result = register_user(
             full_name=name,
@@ -94,6 +97,10 @@ def seed_demo() -> bool:
             user_agent="sigma-demo-seed",
         )
         users[email] = result.user
+
+        # Set admin role for the admin user
+        if seed_role == "admin":
+            result.user.role = "admin"
 
         if not referred_by_email:
             continue

@@ -44,6 +44,16 @@
       <a href="{{ url_for('activity.index') }}" class="nav-item{% if active_page == 'activity' %} is-active{% endif %}" {% if active_page == 'activity' %}aria-current="page"{% endif %}>
         {{ icon("activity", 19) }} <span>Activity</span>
       </a>
+
+      {% if current_user and current_user.role == 'admin' %}
+      <span class="nav-label">Admin</span>
+      <a href="{{ url_for('admin.dashboard') }}" class="nav-item{% if active_page == 'admin' %} is-active{% endif %}" {% if active_page == 'admin' %}aria-current="page"{% endif %}>
+        {{ icon("shield", 19) }} <span>Operations</span>
+      </a>
+      <a href="{{ url_for('admin.users') }}" class="nav-item{% if active_page == 'admin_users' %} is-active{% endif %}" {% if active_page == 'admin_users' %}aria-current="page"{% endif %}>
+        {{ icon("users", 19) }} <span>Users</span>
+      </a>
+      {% endif %}
     </nav>
 
     <div class="sidebar-lower">
