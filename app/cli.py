@@ -9,7 +9,12 @@ from flask import current_app
 from flask.cli import with_appcontext
 
 from .extensions import db
-from .seed import ensure_demo_accounts, seed_demo
+from .seed import (
+    create_demo_operations,
+    ensure_demo_accounts,
+    ensure_demo_operations,
+    seed_demo,
+)
 from .services.investments import credit_due_returns
 
 
@@ -39,19 +44,42 @@ def init_db_command(seed: bool) -> None:
                 f"{', '.join(result['created']) or 'none'}; repaired: "
                 f"{', '.join(result['repaired']) or 'none'}."
             )
+        operations = ensure_demo_operations()
+        if operations["created"]:
+            click.echo(
+                "Demo operations created: " + ", ".join(operations["created"]) + "."
+            )
 
 
 @click.command("ensure-demo")
 @with_appcontext
 def ensure_demo_command() -> None:
-    """Create or repair the demo sign-in accounts (idempotent)."""
+    """Create or repair demo sign-ins and reviewable Operations samples."""
     if current_app.config.get("ENV_NAME") == "production":
-        raise click.ClickException("Refusing to prepare demo accounts in production.")
+        raise click.ClickException("Refusing to prepare demo data in production.")
     result = ensure_demo_accounts()
+    operations = ensure_demo_operations()
     click.echo(
         "Demo accounts ready. Created: "
         f"{', '.join(result['created']) or 'none'}; repaired: "
         f"{', '.join(result['repaired']) or 'none'}."
+    )
+    click.echo(
+        "Demo operations ready. Created: "
+        f"{', '.join(operations['created']) or 'none'}."
+    )
+
+
+@click.command("seed-operations")
+@with_appcontext
+def seed_operations_command() -> None:
+    """Add a fresh pair of sample deposit/withdrawal requests for review."""
+    if current_app.config.get("ENV_NAME") == "production":
+        raise click.ClickException("Refusing to seed demo data in production.")
+    result = create_demo_operations()
+    click.echo(
+        "Demo operations created: "
+        f"{', '.join(result['created']) or 'none'}."
     )
 
 
@@ -92,4 +120,5 @@ def register_cli(app) -> None:
     app.cli.add_command(init_db_command)
     app.cli.add_command(seed_demo_command)
     app.cli.add_command(ensure_demo_command)
+    app.cli.add_command(seed_operations_command)
     app.cli.add_command(credit_returns_command)

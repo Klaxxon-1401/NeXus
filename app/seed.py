@@ -6,6 +6,7 @@ tenant scoping, referral graph and ledger state transitions end-to-end.
 
 from __future__ import annotations
 
+import uuid
 from datetime import datetime, time, timedelta, timezone
 
 from flask import current_app
@@ -23,6 +24,7 @@ from .models import (
 )
 from .models.user import generate_referral_code
 from .services.auth import register_user
+from .services.errors import ServiceError
 from .services.investments import create_investment, credit_due_returns
 from .services.wallet import (
     demo_confirm_deposit,
@@ -243,6 +245,135 @@ def _unique_referral_code() -> str:
         if not db.session.scalar(select(User.id).where(User.referral_code == code)):
             return code
     raise RuntimeError("Could not allocate a unique demo referral code.")
+
+
+DEMO_SAMPLE_KEYS = {
+    "deposit": "demo-sample:v1:deposit",
+    "withdrawal": "demo-sample:v1:withdrawal",
+}
+
+
+def _demo_operations_user(tenant: Tenant) -> User | None:
+    user = db.session.scalar(select(User).where(User.email == "alex@sigma.demo"))
+    if user is not None:
+        return user
+    return db.session.scalar(
+        select(User)
+        .where(User.tenant_id == tenant.id, User.status == "active")
+        .order_by(User.created_at.asc())
+    )
+
+
+def _create_demo_deposit(user: User, *, idempotency_key: str) -> Transaction:
+    transaction = request_deposit(
+        user=user,
+        amount_cents=2_500_00,
+        network="ethereum",
+        source_address=_demo_eth_address(120),
+        transaction_id="TX-DEMO-8F3A21",
+    )
+    transaction.idempotency_key = idempotency_key
+    transaction.details = {**transaction.details, "demo_sample": True}
+    db.session.commit()
+    return transaction
+
+
+def _create_demo_withdrawal(user: User, *, idempotency_key: str) -> Transaction:
+    transaction = request_withdrawal(
+        user=user,
+        amount_cents=1_200_00,
+        network="ethereum",
+        destination_address=_demo_eth_address(121),
+    )
+    transaction.idempotency_key = idempotency_key
+    transaction.details = {**transaction.details, "demo_sample": True}
+    db.session.commit()
+    return transaction
+
+
+def ensure_demo_operations() -> dict[str, list[str]]:
+    """Guarantee the Operations queue has sample requests to review.
+
+    ``seed_demo`` only writes the sample pending deposit/withdrawal on a fresh
+    database, so a hosted database seeded by an older build shows an empty
+    Operations page. The samples carry a fixed idempotency key: they are
+    created once and are never recreated after an admin approves or rejects
+    them. Existing pending requests are respected, not duplicated.
+    """
+    if not current_app.config.get("DEMO_MODE"):
+        raise RuntimeError("Refusing to seed demo operations outside DEMO_MODE.")
+
+    tenant = db.session.scalar(select(Tenant).where(Tenant.slug == "meridian-circle"))
+    if tenant is None:
+        return {"created": []}
+
+    user = _demo_operations_user(tenant)
+    if user is None:
+        return {"created": []}
+
+    created: list[str] = []
+
+    for kind, create in (
+        ("deposit", _create_demo_deposit),
+        ("withdrawal", _create_demo_withdrawal),
+    ):
+        marker = DEMO_SAMPLE_KEYS[kind]
+        exists = db.session.scalar(
+            select(Transaction.id).where(
+                Transaction.tenant_id == tenant.id,
+                Transaction.idempotency_key == marker,
+            )
+        )
+        if exists is not None:
+            continue
+        pending = db.session.scalar(
+            select(Transaction.id).where(
+                Transaction.tenant_id == tenant.id,
+                Transaction.kind == kind,
+                Transaction.status == "pending",
+            )
+        )
+        if pending is not None:
+            continue
+        try:
+            transaction = create(user, idempotency_key=marker)
+        except ServiceError:
+            # e.g. the wallet cannot cover another reserved withdrawal
+            db.session.rollback()
+            continue
+        created.append(transaction.reference)
+
+    return {"created": created}
+
+
+def create_demo_operations() -> dict[str, list[str]]:
+    """Add a fresh pair of reviewable samples (manual ``seed-operations``)."""
+    if not current_app.config.get("DEMO_MODE"):
+        raise RuntimeError("Refusing to seed demo operations outside DEMO_MODE.")
+
+    tenant = db.session.scalar(select(Tenant).where(Tenant.slug == "meridian-circle"))
+    if tenant is None:
+        return {"created": []}
+    user = _demo_operations_user(tenant)
+    if user is None:
+        return {"created": []}
+
+    suffix = uuid.uuid4().hex[:8]
+    created: list[str] = []
+    for kind, create in (
+        ("deposit", _create_demo_deposit),
+        ("withdrawal", _create_demo_withdrawal),
+    ):
+        try:
+            transaction = create(
+                user, idempotency_key=f"demo-sample:manual:{kind}:{suffix}"
+            )
+        except ServiceError:
+            db.session.rollback()
+            continue
+        created.append(transaction.reference)
+    return {"created": created}
+
 
 
 def ensure_demo_accounts() -> dict[str, list[str]]:
